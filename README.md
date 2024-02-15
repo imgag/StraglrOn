@@ -1,0 +1,2 @@
+# StraglrON
+Addon for Straglr
