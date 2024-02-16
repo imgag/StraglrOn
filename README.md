@@ -5,7 +5,7 @@ Developed for better readablity and visualization. Base requirements are both fi
 chr	start	end	motif	repeat_id	associated_disorder	ref_size	normal_range	pathogenic_range
 If there is no information on the last column "NA" is sufficient. 
 
-Base application will provide a .txt file with loci information sorted by chromosome. 
+Base application will provide a .txt file with loci information sorted by chromosome. If the optional argument "--score" is entered, expansion will be ranked based on a normalized score depending on actual size to pathogenic size. 
 
 The optional modes "--hist" and "--alleles" will provide histograms and waterfall visualization of all locis returned by Straglr to be of interest. For the waterfall visualization you must provide the respective bam file and the used reference genome. 
 
