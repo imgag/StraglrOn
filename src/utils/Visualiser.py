@@ -56,12 +56,11 @@ def getHistData(file, expansions: "list[Expansion]"):
     return expansions_read_lists
 
 def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
-    #print(expansion_object.getReadList())
+    
     save_place = plotfolder+"/"+expansion_object.title+'.png'
     ref_size = expansion_object.wt_size
     path_range = expansion_object.pathogenic_range
-    #print(expansion_object.new_read_list)
-    #print(expansion_object.read_list )
+    
     
     if bool_altclustering:
         allele1_size = expansion_object.new_allele1
@@ -75,7 +74,6 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
     if allele1_size == allele2_size:
         
         plt.figure()
-        #print(read_size_lists)
         plt.hist(read_size_lists[0], density=False, bins=np.arange(min(read_size_lists[0]), max(read_size_lists[0]) + 3, 3), label='Allele 1 + 2', rwidth=0.85)
         plt.ylabel('Number of Reads')
         plt.xlabel('Size(bp)')
@@ -126,7 +124,7 @@ def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chro
     
     motif_colors = ["grey", "green", "red"]
     
-        #readlist sorted by length for waterfall visualisation
+    #readlist sorted by length for waterfall visualisation
     read_list.sort(key=lambda x: len(x))
 
     motif = motif.lower()

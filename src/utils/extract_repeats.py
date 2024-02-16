@@ -22,8 +22,7 @@ def parse_tsv(tsv, loci=None):
             if loci is not None and locus not in loci:
                 continue
             support[locus][read_name] = int(read_start), int(size), strand
-            #print(type(support))
-
+        
     return support
 
 def extract_repeats(bam, support, flank_size=10):
@@ -62,19 +61,12 @@ def report(seqs, out_fa):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    #parser.add_argument("tsv", type=str, help="Straglr tsv")
-    #parser.add_argument("bam", type=str, help="bam file") 
-    #parser.add_argument("out", type=str, help="output fasta")
-    #parser.add_argument("--locus", type=str, help="UCSC-format coordinate")
-    #parser.add_argument("--flank", type=int, default=25, help="flank size. Default:100")
     args = parser.parse_args()
     return args
     
 def fastaMaker(tsv, locus, bam, flank_size, repeat_fasta_path):
     
     support = parse_tsv(tsv, locus)
-    #for key, value in support.items():
-        #print(key, value)
     bam = pysam.AlignmentFile(bam)
     seqs = extract_repeats(bam, support, flank_size)
     report(seqs, repeat_fasta_path)

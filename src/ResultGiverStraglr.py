@@ -33,19 +33,27 @@ def is_valid_file(parser, arg, type):
 
 parser = argparse.ArgumentParser()
 
+#These arguments are always required
+
 parser.add_argument("path_input_bed", type=lambda x: is_valid_file(parser, x, "bed"), help="Path to input bed file")
 parser.add_argument("path_input_tsv", type=lambda x: is_valid_file(parser, x, "tsv"), help="Path to input tsv file")
 parser.add_argument("loci_file", type=lambda x: is_valid_file(parser, x, "bed"), help="Path to Loci file used for straglr analysis")
 parser.add_argument("-o", "--output", type=str, required=True, help="Path to output folder")
 
+#These Arguments are optional and produce histograms for each locus and sort the output .txt file based on a normalized increase in repeats respectively
+
 parser.add_argument("--hist", action="store_true", help="Plots histograms of pathogenic expansions")
 parser.add_argument("--score", action="store_true", help="Expansion in output file is sorted by normalized size difference score")
 
+#Activates new clustering method 
+
 parser.add_argument("--altclust", action="store_true", help="Uses Thomas Clustering")
+parser.add_argument("-c", "--cutoff", type=int, default=2, help="Sets number of reads cutoff when clustering unimodal or bimodal allele read frequencies")
+
+#These arguments are required for producing the allele length visualization 
 
 parser.add_argument("--alleles", action="store_true", help="Turns on the allele visualization")
 parser.add_argument("--bam", type=str, help="Location of Bam file of interest")
-parser.add_argument("-c", "--cutoff", type=int, default=2, help="Sets number of reads cutoff when clustering unimodal or bimodal allele read frequencies")
 parser.add_argument("--flank", type=int, default=25, help="flank size. Default:25")
 parser.add_argument("--genome", type=str, help="location of reference genome")
 
@@ -61,7 +69,7 @@ def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
         
     with open(result_file_path, 'w') as f:
         
-        print("#chr"+"\t"+"start"+"\t"+"end"+"\t"+"repeat_id"+"\t"+"repeat_unit"+"\t"+"size"+"\t"+"wt_size"+"\t"+"in_pathogenic_range"+"\t"+"size_difference"+"\t"+"allele1_support"+"\t"+"allele2_support"+"\t"+"score")
+        #print("#chr"+"\t"+"start"+"\t"+"end"+"\t"+"repeat_id"+"\t"+"repeat_unit"+"\t"+"size"+"\t"+"wt_size"+"\t"+"in_pathogenic_range"+"\t"+"size_difference"+"\t"+"allele1_support"+"\t"+"allele2_support"+"\t"+"score")
         f.write("#chr\tstart\tend\trepeat_id\trepeat_unit\tsize\twt_size\tin_pathogenic_range\tsize_difference\tallele1_support\tallele2_support\tscore\n")
         
         if args.altclust:

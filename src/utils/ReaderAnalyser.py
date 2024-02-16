@@ -50,7 +50,7 @@ def resultBedReader(file, loci_dict):
                 analyseGenotype(expansion_object, alleles)
                 expansion_list.append(expansion_object)
                 
-        #List of expansions, though not pathogenic by definition, are sorted by the normalized size difference between sample and reference length on hg38 in descending order         
+        #List of expansions, though not pathogenic by definition, are sorted by chromosome or the normalized size difference between sample and reference length on hg38 in descending order         
        
     return expansion_list
 
@@ -108,7 +108,7 @@ def lociBedReader(bedFile):
         for locus in lociReader_reader:
             if locus[0]!='#chrom':
                 key = locus[0] + locus[1] + locus[2]
-                new_object = Locus(locus[4],locus[0],locus[1],locus[2],locus[3],locus[4],locus[5],locus[6],locus[7],locus[8],locus[9],locus[10])
+                new_object = Locus(locus[4],locus[0],locus[1],locus[2],locus[3],locus[4],locus[5],locus[6],locus[7],locus[8])
                 if key in Loci:
                     Loci[key].append(new_object)
                 else:
@@ -274,8 +274,6 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
 
         for new_list in expansion_object.new_read_list:
             
-            #print(expansion_object.repeat_id, expansion_object.repeat_unit)
-            #print(new_list)
             if len(new_list) <= cutoff:
                 expansion_object.new_read_list.remove(new_list)
                 #expansion_object.read_list = temp_list
@@ -294,7 +292,8 @@ def expansionScorer(expansion : Expansion, new_clustering : bool):
             expansion.norm_score = round(score, 4) 
     else:
         expansion.norm_score = None  
-    
+ 
+'''    
 def bamfileReader(bamFile, pathogenics):
     samfile = pysam.AlignmentFile(bamFile, "rb")
     counter = 0
@@ -318,7 +317,7 @@ def bamfileReader(bamFile, pathogenics):
     samfile.close()
     print(counter)
 
-'''
+
 def cyclicPermutation(motif):
     size = len(motif)
     motifs = deque(motif)

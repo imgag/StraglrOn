@@ -61,7 +61,7 @@ class Expansion:
     
 #Locus class imported from bed/txt file used in straglr run
 class Locus:
-    def __init__(self, name, chromosome, start, end, motif, locus, associated_disease, reference_size, normal_range, pathogenic_range, pathogenic_motiv, pathogenic_motif_range):
+    def __init__(self, name, chromosome, start, end, motif, locus, associated_disease, reference_size, normal_range, pathogenic_range):
         self.name = name
         self.chromosome = chromosome
         self.start = start
@@ -72,5 +72,5 @@ class Locus:
         self.reference_size = reference_size
         self.normal_range = normal_range
         self.pathogenic_range = pathogenic_range
-        self.pathogenic_motif = pathogenic_motiv
-        self.pathogenic_motif_range = pathogenic_motif_range
+        #self.pathogenic_motif = pathogenic_motiv
+        #self.pathogenic_motif_range = pathogenic_motif_range
