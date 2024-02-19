@@ -70,19 +70,19 @@ def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
     with open(result_file_path, 'w') as f:
         
         #print("#chr"+"\t"+"start"+"\t"+"end"+"\t"+"repeat_id"+"\t"+"repeat_unit"+"\t"+"size"+"\t"+"wt_size"+"\t"+"in_pathogenic_range"+"\t"+"size_difference"+"\t"+"allele1_support"+"\t"+"allele2_support"+"\t"+"score")
-        f.write("#chr\tstart\tend\trepeat_id\trepeat_unit\tsize\twt_size\tin_pathogenic_range\tsize_difference\tallele1_support\tallele2_support\tscore\n")
+        f.write("#chr\tstart\tend\trepeat_id\trepeat_unit\tcopy_number\tsize\twt_size\tin_pathogenic_range\tsize_difference\tallele1_support\tallele2_support\tscore\n")
         
         if args.altclust:
 
             for x in output_expansion:
-                f.write(x.chr + "\t" + x.start + "\t" + x.end + "\t" + x.repeat_id + "\t" + x.repeat_unit + "\t" + str(x.allele1_size)+'/'+str(x.allele2_size) + "\t" + str(x.wt_size) + "\t" + x.in_pathogenic_range + "\t" + str(x.size_difference) + "\t" + x.allele1_support + "\t" + x.allele2_support+ "\t" + str(x.norm_score)+"\n")
-                print(x.chr, x.start, x.end, x.repeat_id, x.repeat_unit, (str(x.new_allele1)+'/'+str(x.new_allele2)), x.wt_size, x.new_in_pathogenic_range, x.new_size_difference, x.new_allele1_support, x.new_allele2_support, str(x.new_norm_score))
+                f.write("{}\t{}\t{}\t{}\t{:.1f}/{:.1f}\t{}/{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(x.chr, x.start, x.end, x.repeat_id, (x.new_allele1/len(x.repeat_unit)), (x.new_allele2/len(x.repeat_unit)), x.new_allele1, x.new_allele2, x.wt_size, x.new_in_pathogenic_range, x.new_size_difference, x.new_allele1_support, x.new_allele2_support,x.new_norm_score))
+                #print("{}\t{}\t{}\t{}\t{:.1f}/{:.1f}\t{}/{}\t{}\t{}\t{}\t{}\t{}\t{}".format(x.chr, x.start, x.end, x.repeat_id, (x.new_allele1/len(x.repeat_unit)), (x.new_allele2/len(x.repeat_unit)), x.new_allele1, x.new_allele2, x.wt_size, x.new_in_pathogenic_range, x.new_size_difference, x.new_allele1_support, x.new_allele2_support,x.new_norm_score))
 
         else:
 
             for x in output_expansion:
-                f.write(x.chr + "\t" + x.start + "\t" + x.end + "\t" + x.repeat_id + "\t" + x.repeat_unit + "\t" + str(x.allele1_size)+'/'+str(x.allele2_size) + "\t" + str(x.wt_size) + "\t" + x.in_pathogenic_range + "\t" + str(x.size_difference) + "\t" + x.allele1_support + "\t" + x.allele2_support + "\t"+ str(x.norm_score)+"\n")
-                print(x.chr, x.start, x.end, x.repeat_id, x.repeat_unit, str(x.allele1_size)+'/'+str(x.allele2_size), x.wt_size, x.in_pathogenic_range, x.size_difference, x.allele1_support, x.allele2_support, str(x.norm_score))
+                f.write("{}\t{}\t{}\t{}\t{:.1f}/{:.1f}\t{}/{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(x.chr, x.start, x.end, x.repeat_id, (x.allele1_size/len(x.repeat_unit)), (x.allele2_size/len(x.repeat_unit)), x.allele1_size, x.allele2_size, x.wt_size, x.in_pathogenic_range, x.size_difference, x.allele1_support, x.allele2_support,x.norm_score))                
+                #print("{}\t{}\t{}\t{}\t{:.1f}/{:.1f}\t{}/{}\t{}\t{}\t{}\t{}\t{}\t{}".format(x.chr, x.start, x.end, x.repeat_id, (x.allele1_size/len(x.repeat_unit)), (x.allele2_size/len(x.repeat_unit)), x.allele1_size, x.allele2_size, x.wt_size, x.in_pathogenic_range, x.size_difference, x.allele1_support, x.allele2_support,x.norm_score))
                 
     
     #Base output plus Histograms
@@ -111,7 +111,6 @@ def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
         os.mkdir(repeats_fasta_folder)
     
         for x in output_expansion:    
-            
             extract_repeats.fastaMaker(args.path_input_tsv, x.chr + ":"+ x.start + "-" + x.end, args.bam, args.flank, repeats_fasta_folder + "/" + x._title + ".fa")
             vis.alleleVisualiser(repeats_fasta_folder + "/" + x._title + ".fa", x.repeat_unit, args.flank, x._title, repeats_fasta_folder, x.chr, x.start, x.end, args.genome)
         
