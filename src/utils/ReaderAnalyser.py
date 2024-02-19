@@ -238,7 +238,13 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
                 
         else:
             expansion_object.new_size_difference = expansion_object.new_allele2-expansion_object.wt_size
-            
+            if expansion_object.pathogenic_range == "NA":
+                expansion_object.new_in_pathogenic_range = "NA"
+            elif expansion_object.new_allele2 > int(expansion_object.pathogenic_range):
+                expansion_object.new_in_pathogenic_range = "Yes"
+            else: 
+                expansion_object.new_in_pathogenic_range = "No"
+                
         expansion_object.new_copy_numberA1 = expansion_object.new_allele1/len(expansion_object.repeat_unit)
         expansion_object.new_copy_numberA2 = expansion_object.new_allele2/len(expansion_object.repeat_unit)
         expansion_object.new_allele1_support = len(allele1)

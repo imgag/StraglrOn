@@ -234,8 +234,8 @@ def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif):
             else:
                 color = motif_colors[2]
                 for coord in x[key]:
-                    patches.append(Rectangle((coord, 10*i), len(key), 5, label="others"))
+                    patches.append(Rectangle((coord, 10*i), len(key), 5, label="non-motif"))
                     color_list.append(color)
-                labels.update({color:"others"})
+                labels.update({color:"non-motif"})
         
     return patches, color_list, labels
