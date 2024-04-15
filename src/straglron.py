@@ -125,12 +125,10 @@ def main():
     loci_dict = ra.lociBedReader(args.loci_file)
     expansions = ra.resultBedReader(args.path_input_bed, loci_dict)
     sample_id = Path(args.path_input_bed).stem
-
+        
     vis.getHistData(args.path_input_tsv, expansions)
     
     for expansion_object in expansions:
-        if __name__ == '__main__':
-            expansion_object
         if args.altclust:
             ra.newGenotyping(expansion_object, args.cutoff, False)
             

@@ -13,7 +13,6 @@ import numpy as np
 from Bio import SeqIO
 import pysam
 
-
 def getHistData(file, expansions: "list[Expansion]"):
     expansions_read_lists = {}
     for expansion in expansions:
@@ -28,16 +27,8 @@ def getHistData(file, expansions: "list[Expansion]"):
                 for line in read_reader:
                     if not line[0].startswith('#'):
                         if expansion.start+expansion.repeat_unit == line[1]+line[3]:
-                            # skip reads with read_status != full
-                            if line[14] != "full":
-                                continue
-                            # read column 'read'/'read_name' and 'read_start'
-                            read_coords_dict.update({line[7]: int(line[11])})
-                            if line[11] == "NA":
-                                read_coords_dict.update({line[7]: np.nan})
-                            # read column 'size'
-                            read_list.append(int(line[10]))
-
+                            read_coords_dict.update({line[5]:int(line[8])})
+                            read_list.append(int(line[7]))
                 expansion.read_dict = read_coords_dict   
                 expansion.read_list = [read_list] 
                 expansion.title = title 
@@ -52,29 +43,25 @@ def getHistData(file, expansions: "list[Expansion]"):
                 for line in read_reader:
                     if not line[0].startswith('#'):
                         if expansion.start+expansion.repeat_unit == line[1]+line[3]:
-                            # skip reads with read_status != full
-                            if line[14] != "full":
-                                continue
-                            if expansion.copy_numberA1 == line[13]:  # read column 'allele' (not 'copy_number')
-                                read_list_A1.append(int(line[10]))  # read column 'size'
-                            if expansion.copy_numberA2 == line[13]:  # read column 'allele' (not 'copy_number')
-                                read_list_A2.append(int(line[10]))  # read column 'size'
-                            # read column 'read'/'read_name' and 'read_start'
-                            read_coords_dict.update({line[7]:int(line[11])})
+                            if expansion.copy_numberA1 == line[10]:
+                                read_list_A1.append(int(line[7]))
+                            if expansion.copy_numberA2 == line[10]:
+                                read_list_A2.append(int(line[7]))
+                            read_coords_dict.update({line[5]:int(line[8])})
                 expansion.read_dict = read_coords_dict   
                 expansion.read_list = [read_list_A1,read_list_A2] 
                 expansion.title = title         
                 expansions_read_lists.update({expansion.repeat_id: (genotype1,genotype2,title,read_list_A1,read_list_A2)})
-
+        
     return expansions_read_lists
-
 
 def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
     
     save_place = plotfolder+"/"+expansion_object.title+'.png'
     ref_size = expansion_object.wt_size
     path_range = expansion_object.pathogenic_range
-
+    
+    
     if bool_altclustering:
         allele1_size = expansion_object.new_allele1
         allele2_size = expansion_object.new_allele2
@@ -94,7 +81,10 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
         plt.axvline(allele1_size, color='k', linestyle='dashed', linewidth=1, label=allele1_size)
         plt.axvline(allele2_size, color='k', linestyle='dashed', linewidth=1, label=allele2_size)
         plt.axvline(ref_size, color='green', linewidth=1, label="wt size: " + str(ref_size))
-
+        
+        #if path_range != "NA":
+            #plt.axvline(int(path_range), color='grey', linewidth=1, label="pathogenic range: " + str(path_range))
+            
         plt.legend()
         plt.savefig(save_place)
         plt.close()
@@ -109,12 +99,14 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
         plt.axvline(allele1_size, color='black', linestyle='dashed', linewidth=1, label=allele1_size)
         plt.axvline(allele2_size, color='red', linestyle='dashed', linewidth=1, label=allele2_size)
         plt.axvline(ref_size, color='green', linewidth=1, label="wt size: " + str(ref_size))
-
+        
+        #if path_range != "NA":
+            #plt.axvline(int(path_range), color='grey', linewidth=1, label="pathogenic range: " + str(path_range))
+            
         plt.legend()
         plt.savefig(save_place)
         plt.close()
-
-
+        
 def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chromosome, start, end, reference_genome):
     
     chr = chromosome
@@ -214,6 +206,7 @@ def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chro
     plt.close()
 
 
+    
 def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif):
     patches = []
     color_list = []

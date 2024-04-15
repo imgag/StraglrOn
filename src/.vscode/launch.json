@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [        
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["/mnt/storage2/users/ahbraut2/data/snakemake_test/benchmark/straglr_test_new_Loci/og/Sample012_23014LRa.bed","--hist", "/mnt/storage2/users/ahbraut2/data/snakemake_test/benchmark/straglr_test_new_Loci/og/Sample012_23014LRa.tsv","-o", "/mnt/storage2/users/ahbraut2/scripts/TestFolder/Home", "/mnt/storage2/users/ahbraut2/data/Master_Bedfiles/RepeatLoci_straglr_LT_V2.bed" , "--bam","/mnt/storage2/users/ahbraut2/data/ONT_Pilot_TNAMSE_Links/Sample012_23014LRa.bam", "--cutoff", "3", "--altclust"]
+        }
+    ]
+}

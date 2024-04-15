@@ -27,8 +27,17 @@ def resultBedReader(file, loci_dict):
                 int_path_range = loci_dict[coords][0].pathogenic_range
                 motif = straglr[3]
                 alleles = 0
+                # "-" means that there was no coverage in this region
+                if straglr[4] == '-':
+                    allele1 = np.nan
+                    allele2 = np.nan
+                    copy_number_1 = np.nan
+                    copy_number_2 = np.nan
+                    allele1_support = 0
+                    allele2_support = 0
+                    alleles = 0
                 #"-" means that straglr assigned no different number for second allele -> allele 1 = allele 2; In the following 2 different allele sizes were assigned
-                if straglr[8]!='-':
+                elif straglr[8]!='-':
                     allele1 = round(float(straglr[4]))
                     allele2 = round(float(straglr[7]))
                     copy_number_1 = straglr[5]
@@ -55,8 +64,12 @@ def resultBedReader(file, loci_dict):
     return expansion_list
 
 def analyseGenotype(expansion_object: Expansion, alleles):
-    
-    if alleles == 1:
+
+    if alleles == 0:
+        # repeat not covered
+        expansion_object.in_pathogenic_range = 'NA'
+        expansion_object.size_difference = np.nan
+    elif alleles == 1:
         
         if expansion_object.pathogenic_range == 'NA':
             expansion_object.in_pathogenic_range ='NA'
@@ -123,25 +136,31 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     if new:
     
         for new_readlist in expansion_object.new_read_list:
-    
+            #print("Oldlist: ")
+            #print(original_readlist)
             concat_reads += new_readlist
             number_of_reads = len(concat_reads)
+            #print(number_of_reads)
             
     else: 
     
         for original_readlist in expansion_object.read_list:
-            
+            #print("Oldlist: ")
+            #print(original_readlist)
             concat_reads += original_readlist
             number_of_reads = len(concat_reads)
+            #print(number_of_reads)
             
     rearanged_array = np.array(concat_reads).reshape(-1,1)
+    #print(expansion_object.repeat_id, expansion_object.repeat_unit, " STARTS HERE: ")
+    #print(rearanged_array)
     
     X = rearanged_array
     
     N = np.arange(1,4)
     M = np.arange(1,3)
     
-    # fit models with 1-3 components
+    # fit models with 1-2 components
     
     if len(np.unique(X)) < 2:
         models = [GaussianMixture(1, covariance_type='full', init_params="kmeans", max_iter=500).fit(X)]
@@ -158,6 +177,10 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     best_model = models[np.argmin(BIC)]
 
     cluster_assignment = best_model.predict(X)
+    
+    #print(cluster_assignment)
+    #print(X)
+    #print(np.std(X))
 
     cluster1 = []
     cluster2 = []
@@ -165,13 +188,16 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     clusters = []
     
     for i in range(len(X)):
-        
         if cluster_assignment[i] == 0:
             cluster1.append(X[i][0])
         if cluster_assignment[i] == 1:
             cluster2.append(X[i][0])
         if cluster_assignment[i] == 2:
             cluster3.append(X[i][0])
+            
+    #print("This is cluster1: ", cluster1)
+    #print("This is cluster2: ", cluster2)
+    #print("This is cluster3: ", cluster3)
     
     clusters.append(cluster1)       
     clusters.append(cluster2)
@@ -183,23 +209,24 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     cluster2 = clusters[1]
     cluster3 = clusters[2]
     
+    #print("Longest cluster: ", cluster1)
+    #print("Middle cluster: ", cluster2)
+    #print("Shortest cluster: ",cluster3)
+    
     if cluster3:
-        
         distance13 = abs(np.mean(cluster3) - np.mean(cluster1))
         distance12 = abs(np.mean(cluster3) - np.mean(cluster2))
-        
         if  distance12 < distance13: 
-            
             if distance12 < max(5, 2*np.var(cluster2)):
-                
                 cluster2 += cluster3
-                
+                #print("Cluster 3 wurde cluster 2 geadded werden") 
         else:
-            
             if distance13 < max(5, 2*np.var(cluster2)):
-                
                 cluster1 += cluster3
-               
+                #print("Cluster 3 wurde cluster 1 geadded werden")
+        #print(np.mean(cluster3), " ", np.var(cluster3))
+        #print(np.mean(cluster2), " ", np.var(cluster2))
+        #print(np.mean(cluster1), " ", np.var(cluster1))
     
     allele1 = cluster1
     allele2 = cluster2
@@ -254,6 +281,13 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         expansion_object.new_allele1_support = len(allele1)
         expansion_object.new_allele2_support =  len(allele1)
         
+        #print(expansion_object.title, expansion_object.new_read_list)
+
+    #print("The length of the current lists is {}".format([len(n) for n in expansion_object.new_read_list]))
+
+    #temp_list = expansion_object.new_read_list
+    
+    #print(len(expansion_object.new_read_list))
     
     if number_of_reads > 3*cutoff:
 
@@ -278,3 +312,39 @@ def expansionScorer(expansion : Expansion, new_clustering : bool):
     else:
         expansion.norm_score = None  
  
+'''    
+def bamfileReader(bamFile, pathogenics):
+    samfile = pysam.AlignmentFile(bamFile, "rb")
+    counter = 0
+    expansion = pathogenics
+    chromosome = expansion.chr
+    start = int(expansion.start)
+    end = int(expansion.end)
+    ru = expansion.repeat_unit
+    print(expansion.repeat_id, chromosome, start, end, ru)
+    for key, value in expansion.read_dict.items():
+        print(key, value, len(expansion.read_dict))
+    for read in samfile.fetch(chromosome, start, end):
+        try:
+            print(read.query_name, expansion.read_dict[read.query_name])
+            print(read.query_sequence[expansion.read_dict[read.query_name]:(expansion.read_dict[read.query_name]+50)])
+            print()
+        
+        except KeyError:
+            print("Key " + read.query_name + " not found!")
+        counter += 1
+    samfile.close()
+    print(counter)
+
+
+def cyclicPermutation(motif):
+    size = len(motif)
+    motifs = deque(motif)
+    perms = []
+    
+    for i in range(size):
+        motifs.rotate(1)
+        perms.append(''.join(list(motifs)))    
+
+    return permm
+'''
