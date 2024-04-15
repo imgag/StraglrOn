@@ -27,8 +27,16 @@ def getHistData(file, expansions: "list[Expansion]"):
                 for line in read_reader:
                     if not line[0].startswith('#'):
                         if expansion.start+expansion.repeat_unit == line[1]+line[3]:
-                            read_coords_dict.update({line[5]:int(line[8])})
-                            read_list.append(int(line[7]))
+                            # skip reads with read_status != full
+                            if line[14] != "full":
+                                continue
+                            # read column 'read'/'read_name' and 'read_start'
+                            read_coords_dict.update({line[7]: int(line[11])})
+                            if line[11] == "NA":
+                                read_coords_dict.update({line[7]: np.nan})
+                            # read column 'size'
+                            read_list.append(int(line[10]))
+
                 expansion.read_dict = read_coords_dict   
                 expansion.read_list = [read_list] 
                 expansion.title = title 
@@ -43,11 +51,15 @@ def getHistData(file, expansions: "list[Expansion]"):
                 for line in read_reader:
                     if not line[0].startswith('#'):
                         if expansion.start+expansion.repeat_unit == line[1]+line[3]:
-                            if expansion.copy_numberA1 == line[10]:
-                                read_list_A1.append(int(line[7]))
-                            if expansion.copy_numberA2 == line[10]:
-                                read_list_A2.append(int(line[7]))
-                            read_coords_dict.update({line[5]:int(line[8])})
+                            # skip reads with read_status != full
+                            if line[14] != "full":
+                                continue
+                            if expansion.copy_numberA1 == line[9]:  # read column 'copy_number'
+                                read_list_A1.append(int(line[10]))  # read column 'size'
+                            if expansion.copy_numberA2 == line[9]:  # read column 'copy_number'
+                                read_list_A2.append(int(line[10]))  # read column 'size'
+                            # read column 'read'/'read_name' and 'read_start'
+                            read_coords_dict.update({line[7]:int(line[11])})
                 expansion.read_dict = read_coords_dict   
                 expansion.read_list = [read_list_A1,read_list_A2] 
                 expansion.title = title         
