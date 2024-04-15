@@ -30,13 +30,7 @@ def resultBedReader(file, loci_dict):
                 # "-" means that there was no coverage in this region -> skip this loci
                 if straglr[4] == '-':
                     continue
-                    # allele1 = np.nan
-                    # allele2 = np.nan
-                    # copy_number_1 = np.nan
-                    # copy_number_2 = np.nan
-                    # allele1_support = 0
-                    # allele2_support = 0
-                    # alleles = 0
+
                 # "-" means that straglr assigned no different number for second allele -> allele 1 = allele 2; In the following 2 different allele sizes were assigned
                 elif straglr[8] != '-':
                     allele1 = round(float(straglr[4]))
@@ -137,13 +131,11 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     number_of_reads = 0
 
     if new:
-
         for new_readlist in expansion_object.new_read_list:
             concat_reads += new_readlist
             number_of_reads = len(concat_reads)
             
     else: 
-    
         for original_readlist in expansion_object.read_list:
             concat_reads += original_readlist
             number_of_reads = len(concat_reads)
@@ -172,10 +164,6 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
 
     cluster_assignment = best_model.predict(X)
 
-    # print(cluster_assignment)
-    # print(X)
-    # print(np.std(X))
-
     cluster1 = []
     cluster2 = []
     cluster3 = []
@@ -203,18 +191,14 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         
         distance13 = abs(np.mean(cluster3) - np.mean(cluster1))
         distance12 = abs(np.mean(cluster3) - np.mean(cluster2))
-            if distance12 < max(5, 2*np.var(cluster2)):        if  distance12 < distance13: 
-            
-            if distance12 < max(5, 2*np.var(cluster2)):                
+        if distance12 < distance13:
+            if distance12 < max(5, 2*np.var(cluster2)):
                 cluster2 += cluster3
-                #print("Cluster 3 wurde cluster 2 geadded werden")         else:
-            if distance13 < max(5, 2*np.var(cluster2)):                
+        else:
+            if distance13 < max(5, 2*np.var(cluster2)):
                 cluster1 += cluster3
     allele1 = cluster1
     allele2 = cluster2
-
-    # print(allele1)
-    # print(allele2)
 
     if allele1 and allele2:
 
@@ -244,7 +228,6 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         expansion_object.new_copy_numberA2 = expansion_object.new_allele2 / len(expansion_object.repeat_unit)
         expansion_object.new_allele1_support = len(allele1)
         expansion_object.new_allele2_support = len(allele2)
-        # print("New: " + expansion_object.title, expansion_object.new_read_list)
     else:
         expansion_object.new_read_list = [allele1 + allele2]
         expansion_object.new_allele1 = np.median(allele1)
@@ -262,22 +245,16 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         expansion_object.new_copy_numberA2 = expansion_object.new_allele2 / len(expansion_object.repeat_unit)
         expansion_object.new_allele1_support = len(allele1)
 
-    # temp_list = expansion_object.new_read_list
-
-    # print(len(expansion_object.new_read_list))
-
     if number_of_reads > 3 * cutoff:
 
         for new_list in expansion_object.new_read_list:
 
             if len(new_list) <= cutoff:
                 expansion_object.new_read_list.remove(new_list)
-                # expansion_object.read_list = temp_list
                 newGenotyping(expansion_object, cutoff, True)
 
 
 def expansionScorer(expansion: Expansion, new_clustering: bool):
-    # score = x-xmin/xmax-xmin
     if expansion.pathogenic_range != "NA":
         if new_clustering:
             score = (expansion.new_size_difference) / (int(expansion.pathogenic_range) - expansion.wt_size)
@@ -285,7 +262,6 @@ def expansionScorer(expansion: Expansion, new_clustering: bool):
 
         else:
             score = (expansion.size_difference) / (int(expansion.pathogenic_range) - expansion.wt_size)
-            # print(expansion.in_pathogenic_range, score, expansion.size_difference, int(expansion.pathogenic_range))
             expansion.norm_score = round(score, 4)
     else:
         expansion.norm_score = None  
