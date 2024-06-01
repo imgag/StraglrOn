@@ -6,6 +6,8 @@ from .Structures import Locus
 import numpy as np
 from sklearn.mixture import GaussianMixture
 
+# The resultBedReader function is used to interpret the Straglr bed result file and assign calculated repeat sizes to respective expansion objects
+
 def resultBedReader(file, loci_dict):
     
     with open(file) as straglr:
@@ -14,7 +16,7 @@ def resultBedReader(file, loci_dict):
         expansion_list: list[Expansion] = []
         sample_id = Path(file).stem
         
-        #loci   allele1 allele2 YES/NO  Referenz    size_difference    PathRange
+        #Straglr Bed layout in columns: chrom	start	end	repeat_unit	allele1:size	allele1:copy_number	allele1:support	allele2:size	allele2:copy_number	allele2:support
         for straglr in straglr_reader:
             if straglr[0]!='#chrom':
                 #Variables are assigned based on the coordinates in the straglr reader
@@ -22,6 +24,8 @@ def resultBedReader(file, loci_dict):
                 chr = straglr[0]
                 start = straglr[1]
                 end = straglr[2]
+                
+                #Since are not named in result.bed, Loci name is inferred from loci dict along with reference size and pathogenic range information
                 loci = loci_dict[coords][0].name
                 reference_size = int(loci_dict[coords][0].reference_size)
                 int_path_range = loci_dict[coords][0].pathogenic_range
@@ -45,15 +49,17 @@ def resultBedReader(file, loci_dict):
                     allele1_support = straglr[6]
                     allele2_support = straglr[6]
                     alleles = 1
-                            
-                expansion_object = Expansion(chr, start, end, loci, motif, allele1, allele2, reference_size, int_path_range, copy_number_1, copy_number_2, allele1_support, allele2_support, sample_id)
-                analyseGenotype(expansion_object, alleles)
-                expansion_list.append(expansion_object)
                 
-        #List of expansions, though not pathogenic by definition, are sorted by chromosome or the normalized size difference between sample and reference length on hg38 in descending order         
-       
+                #Each expansion object is initiated with the respective values obtained from the result.bed file            
+                expansion_object = Expansion(chr, start, end, loci, motif, allele1, allele2, reference_size, int_path_range, copy_number_1, copy_number_2, allele1_support, allele2_support, sample_id)
+                #Pathogenicity testing
+                analyseGenotype(expansion_object, alleles)
+                #All expansions of one sample are organized in a list for later sorting
+                expansion_list.append(expansion_object)
+                       
     return expansion_list
 
+#This function is used to compare pathogenic and observed repeat sizes and make statements about the pathogenicity of the respective expansion
 def analyseGenotype(expansion_object: Expansion, alleles):
     
     if alleles == 1:
@@ -100,7 +106,9 @@ def analyseGenotype(expansion_object: Expansion, alleles):
                 expansion_object.size_difference = expansion_object.allele1_size-expansion_object.wt_size
             else:
                 expansion_object.size_difference = expansion_object.allele2_size-expansion_object.wt_size
-                
+
+#This function generates the loci dictionary
+#chr	start	end	motif	repeat_id	associated_disorder	ref_size	normal_range	pathogenic_range                
 def lociBedReader(bedFile):
     Loci = {}
     with open(bedFile) as lociCoords:
