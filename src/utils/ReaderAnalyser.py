@@ -25,7 +25,7 @@ def resultBedReader(file, loci_dict):
                 start = straglr[1]
                 end = straglr[2]
                 
-                #Since are not named in result.bed, Loci name is inferred from loci dict along with reference size and pathogenic range information
+                #Since loci are not named in result.bed, Loci name is inferred from loci dict along with reference size and pathogenic range information
                 loci = loci_dict[coords][0].name
                 reference_size = int(loci_dict[coords][0].reference_size)
                 int_path_range = loci_dict[coords][0].pathogenic_range
@@ -115,6 +115,7 @@ def lociBedReader(bedFile):
         lociReader_reader=csv.reader(lociCoords, delimiter='\t')
         for locus in lociReader_reader:
             if locus[0]!='#chrom':
+                #Additional keys had to be created since straglrs naming system in result.bed file does not include locus names only coordinates
                 key = locus[0] + locus[1] + locus[2]
                 new_object = Locus(locus[4],locus[0],locus[1],locus[2],locus[3],locus[4],locus[5],locus[6],locus[7],locus[8])
                 if key in Loci:
@@ -123,10 +124,13 @@ def lociBedReader(bedFile):
                     Loci.update({key:[new_object]})
     return Loci
 
+#Function is only called if genotyping is updated
 def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         
     concat_reads = []
     number_of_reads = 0
+    
+    #All allele groups are combined
     
     if new:
     
@@ -146,10 +150,11 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     
     X = rearanged_array
     
+    #Number of models
     N = np.arange(1,4)
     M = np.arange(1,3)
     
-    # fit models with 1-3 components
+    #Fit models with 1-3 components for possible alleles
     
     if len(np.unique(X)) < 2:
         models = [GaussianMixture(1, covariance_type='full', init_params="kmeans", max_iter=500).fit(X)]
@@ -161,10 +166,12 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         models = [GaussianMixture(n, covariance_type='full', init_params="kmeans", max_iter=500).fit(X)
                 for n in N]
 
+    #BIC is collected for each model that are fitted against combined allele length array
     BIC = [m.bic(X) for m in models]
-
+    #Best fitting = model with lowest BIC
     best_model = models[np.argmin(BIC)]
 
+    #Predict funtion assign a number from 0 to X for each length value in the combined reads array
     cluster_assignment = best_model.predict(X)
 
     cluster1 = []
@@ -172,6 +179,7 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     cluster3 = []
     clusters = []
     
+    #Assignment of length values to respective clusters
     for i in range(len(X)):
         
         if cluster_assignment[i] == 0:
@@ -191,6 +199,7 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     cluster2 = clusters[1]
     cluster3 = clusters[2]
     
+    #Smallest cluster is added to closest cluster
     if cluster3:
         
         distance13 = abs(np.mean(cluster3) - np.mean(cluster1))
@@ -212,9 +221,7 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
     allele1 = cluster1
     allele2 = cluster2
     
-    #print(allele1)
-    #print(allele2)
-    
+    #New allele and pathongenicity assignment, Median value was chosen instead of mean (Modal value may be alternate option)
     if allele1 and allele2: 
           
         expansion_object.new_read_list = [allele1,allele2]
@@ -243,7 +250,7 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         expansion_object.new_copy_numberA2 = expansion_object.new_allele2/len(expansion_object.repeat_unit)
         expansion_object.new_allele1_support = len(allele1)
         expansion_object.new_allele2_support =  len(allele2)
-        #print("New: " + expansion_object.title, expansion_object.new_read_list)
+        
     else:
         expansion_object.new_read_list = [allele1+allele2]
         expansion_object.new_allele1 = np.median(allele1)
@@ -262,16 +269,16 @@ def newGenotyping(expansion_object: Expansion, cutoff, new: bool):
         expansion_object.new_allele1_support = len(allele1)
         expansion_object.new_allele2_support =  len(allele1)
         
-    
+    #Added filter function for allele arrays with too few reads 
     if number_of_reads > 3*cutoff:
 
         for new_list in expansion_object.new_read_list:
             
             if len(new_list) <= cutoff:
                 expansion_object.new_read_list.remove(new_list)
-                #expansion_object.read_list = temp_list
                 newGenotyping(expansion_object, cutoff, True)
-        
+
+#Scoring function that assigns normalized score for loci with avaible pathongenic range information       
 def expansionScorer(expansion : Expansion, new_clustering : bool):
     #score = x-xmin/xmax-xmin
     if expansion.pathogenic_range != "NA":

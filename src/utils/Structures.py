@@ -72,5 +72,4 @@ class Locus:
         self.reference_size = reference_size
         self.normal_range = normal_range
         self.pathogenic_range = pathogenic_range
-        #self.pathogenic_motif = pathogenic_motiv
-        #self.pathogenic_motif_range = pathogenic_motif_range
+        
