@@ -5,6 +5,7 @@ import pysam
 from collections import defaultdict
 import re
 
+
 def parse_tsv(tsv, loci=None):
     support = defaultdict(dict)
     with open(tsv, 'r') as ff:
@@ -13,17 +14,22 @@ def parse_tsv(tsv, loci=None):
                 continue
             cols = line.rstrip().split('\t')
             locus = cols[0] + ":" + cols[1] + "-" + cols[2]
-            status = "does not exist"
-            read_name = cols[5]
-            size = cols[7]
-            read_start = cols[8]
-            strand = cols[9]
+            status = cols[14].strip()  # was "does not exist"
+            # ignore skipped/failed reads
+            if status != "full":
+                continue
+            read_name = cols[7]  # was cols[5]
+            size = cols[10]  # was cols[7]
+            read_start = cols[11]  # was cols[8]
+            strand = cols[12]  # was cols[9]
             
             if loci is not None and locus not in loci:
                 continue
+            # print(read_name)
             support[locus][read_name] = int(read_start), int(size), strand
         
     return support
+
 
 def extract_repeats(bam, support, flank_size=10):
     seqs = {}
