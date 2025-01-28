@@ -4,7 +4,7 @@ import argparse
 import pysam
 from collections import defaultdict
 import re
-
+from src.utils.Structures import MethylationCall
 
 def parse_tsv(tsv, loci=None):
     support = defaultdict(dict)
@@ -31,13 +31,14 @@ def parse_tsv(tsv, loci=None):
     return support
 
 
-def extract_repeats(bam, support, flank_size=10):
+def parse_bam(bam, support, flank_size=10):
     seqs = {}
+    methylations = {}
     for locus in support:
         seqs[locus] = []
         chrom, start, end = re.split('[:-]', locus)
         for aln in bam.fetch(chrom, int(start), int(end)):
-            
+                      
             if aln.query_name in support[locus] and not aln.query_name in seqs:
                 rlen = aln.infer_read_length()
                 if support[locus][aln.query_name][2] == '+':
@@ -54,12 +55,39 @@ def extract_repeats(bam, support, flank_size=10):
                     right_seq = aln.query_sequence[right[0]:right[1]].upper()
                     seq = left_seq + repeat_seq + right_seq
                     seqs[locus].append((aln.query_name, support[locus][aln.query_name][1], seq))
+
+                    # Extract Methylation data
+                    methylation_calls = []
+        
+                    if aln.has_tag('MM') and aln.has_tag('ML'):
+                        mod_string = aln.get_tag('MM')
+                        mod_quals = aln.get_tag('ML')
+                        
+                        # Parse modification string (format: "C+m,5,0,1;")
+                        for mod in mod_string.split(';'):
+                            if not mod or not mod.startswith('C+m'):
+                                continue
+                                
+                            _, positions = mod.split(',', 1)
+                            positions = list(map(int, positions.split(',')))
+                            
+                            for pos, qual in zip(positions, mod_quals):
+                                methylation_calls.append(
+                                    MethylationCall(
+                                        position=pos,
+                                        is_methylated=qual >= 200,  # Standard threshold
+                                        quality_score=qual
+                                    )
+                                )
+        
+                    if methylation_calls:
+                        methylations[locus] = methylation_calls
                 except:
                     print('problem extracting repeat from {}'.format(aln.query_name))
 
-    return seqs
+    return seqs, methylations
 
-def report(seqs, out_fa):
+def write_fasta(seqs, out_fa):
     with open(out_fa, 'w') as out:
         for locus in sorted(seqs.keys()):
             for read_name, repeat_size, seq in seqs[locus]:
@@ -74,5 +102,5 @@ def fastaMaker(tsv, locus, bam, flank_size, repeat_fasta_path):
     
     support = parse_tsv(tsv, locus)
     bam = pysam.AlignmentFile(bam)
-    seqs = extract_repeats(bam, support, flank_size)
-    report(seqs, repeat_fasta_path)
+    seqs = parse_bam(bam, support, flank_size)
+    write_fasta(seqs, repeat_fasta_path)

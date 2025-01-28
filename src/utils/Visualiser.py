@@ -17,8 +17,6 @@ import pysam
 # set hashsalt to const value to make plots deterministic for tests
 rc('svg', hashsalt="Totally_Random_String")
 
-
-
 def getHistData(file, expansions: "list[Expansion]"):
     expansions_read_lists = {}
     for expansion in expansions:
@@ -118,22 +116,29 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
     plt.close()
 
 
-def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chromosome, start, end, reference_genome):
-    
+def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chromosome, start, end, reference_genome, bam_file):
     chr = chromosome
     start = int(start)
     end = int(end)
     
     refGen = pysam.FastaFile(reference_genome)
+    reference_sequence = refGen.fetch(chr, start, end)
     
-    reference_sequence = refGen.fetch(chr,start,end)
+    # Read methylation data from BAM
+    methylation_data = extract_methylation_from_bam(bam_file, chr, start, end)
     
-    fasta_sequences = list(SeqIO.parse(open(fasta_file),'fasta'))
+    fasta_sequences = list(SeqIO.parse(open(fasta_file), 'fasta'))
     read_list = []
     for fasta in fasta_sequences:
         read_list.append(str(fasta.seq))
     
-    motif_colors = ["grey", "green", "red"]
+    motif_colors = {
+        "flank": "grey",
+        "motif": "green",
+        "non_motif": "red",
+        "methylated": "blue",
+        "unmethylated": "yellow"
+    }
     
     #readlist sorted by length for waterfall visualisation
     read_list.sort(key=lambda x: len(x))
@@ -198,10 +203,25 @@ def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chro
     # Plot dimension depending on number and maximum length
     plt.xlim([0,size])
     plt.ylim([0, (len(read_list)+1)*10])
-    patches_list, color_list, labels = rectangleMaker(motif_colors, motifs_dict_list, size, flank_length, motif)
+    
+    # Read methylation data if fastq file provided
+    methylation_data = {}
+    if fastq_file:
+        methylation_data = read_methylation_from_fastq(fastq_file)
+    
+    # Pass methylation data to rectangleMaker
+    patches, color_list, labels = rectangleMaker(
+        motif_colors, 
+        motifs_dict_list, 
+        size, 
+        flank_length, 
+        motif,
+        methylation_data
+    )
+    
     our_cmap = ListedColormap(color_list)
-    patches_collection = PatchCollection(patches_list, cmap=our_cmap)
-    patches_collection.set_array(np.arange(len(patches_list)))
+    patches_collection = PatchCollection(patches, cmap=our_cmap)
+    patches_collection.set_array(np.arange(len(patches)))
     ax.add_collection(patches_collection)
     handles=[]
 
@@ -217,7 +237,7 @@ def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chro
     plt.close()
 
 
-def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif):
+def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif, methylation_data=None):
     patches = []
     color_list = []
     labels = {}
@@ -248,4 +268,20 @@ def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif):
                     color_list.append(color)
                 labels.update({color:"non-motif"})
         
+        # Add methylation visualization
+        if methylation_data:
+            read_name = list(x.keys())[0]
+            if read_name in methylation_data:
+                for methyl_call in methylation_data[read_name]:
+                    plot_pos = methyl_call.position + flank_length
+                    rect = Rectangle((plot_pos, 10*i), 2, 5)
+                    patches.append(rect)
+                    
+                    if methyl_call.is_methylated:
+                        color_list.append(motif_colors["methylated"])
+                        labels[motif_colors["methylated"]] = "Methylated CpG"
+                    else:
+                        color_list.append(motif_colors["unmethylated"])
+                        labels[motif_colors["unmethylated"]] = "Unmethylated CpG"
+    
     return patches, color_list, labels

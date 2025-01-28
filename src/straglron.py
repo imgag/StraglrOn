@@ -99,9 +99,21 @@ def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
     if args.alleles:
         print("Generating allele composition graphs ...")
         
-        for x in output_expansion:    
-            extract_repeats.fastaMaker(args.path_input_tsv, x.chr + ":"+ x.start + "-" + x.end, args.bam, args.flank, args.output + "/" + x._title + ".fa")
-            vis.alleleVisualiser(args.output + "/" + x._title + ".fa", x.repeat_unit, args.flank, x._title, args.output, x.chr, x.start, x.end, args.genome)
+        for x in output_expansion:
+            seqs, methylations = extract_repeats.parse_bam(args.bam, x.chr + ":"+ x.start + "-" + x.end, args.flank)
+            extract_repeats.write_fasta(seqs, args.output + "/" + x._title + ".fa")
+           
+            vis.alleleVisualiser(
+                args.output + "/" + x._title + ".fa",
+                x.repeat_unit,
+                args.flank,
+                x._title,
+                args.output,
+                x.chr,
+                x.start,
+                x.end,
+                args.genome,
+            )
         
         print("Allele composition graphs completed.")
 

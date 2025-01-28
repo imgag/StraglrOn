@@ -76,3 +76,10 @@ class Locus:
         self.min_pathogenic = min_pathogenic
         #self.pathogenic_motif = pathogenic_motiv
         #self.pathogenic_motif_range = pathogenic_motif_range
+
+# Methylation call class used in extract_repeats.py
+class MethylationCall:
+    def __init__(self, position, is_methylated, quality_score):
+        self.position = position
+        self.is_methylated = is_methylated
+        self.quality_score = quality_score
