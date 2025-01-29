@@ -102,10 +102,12 @@ def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
         
         for x in output_expansion:    
             
+            support = extract_repeats.parse_tsv(args.path_input_tsv, x.locus)
+
             # Get sequences and methylation data
             sequences = extract_repeats.parse_bam(
                 args.bam,
-                x,
+                support,
                 args.flank
             )
             

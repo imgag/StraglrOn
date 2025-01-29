@@ -1,10 +1,11 @@
 #Expansion class used for variable and function storage for analysis and presentation        
 class Expansion:
-    def __init__(self, chr, start, end, repeat_id, repeat_unit, ref_motif, allele1_size, allele2_size, wt_size, pathogenic_range, copy_numberA1, copy_numberA2, allele1_support, allele2_support, sample_id):
+    def __init__(self, chr, start, end, locus, repeat_id, repeat_unit, ref_motif, allele1_size, allele2_size, wt_size, pathogenic_range, copy_numberA1, copy_numberA2, allele1_support, allele2_support, sample_id):
         # Data imported from straglr output bamfile in ResultBedReader = required
         self.chr = chr
         self.start = start
         self.end = end
+        self.locus = locus
         self.repeat_id = repeat_id
         self.repeat_unit = repeat_unit
         self.ref_motif = ref_motif
@@ -15,8 +16,6 @@ class Expansion:
         self.allele1_support = allele1_support
         self.allele2_support = allele2_support 
         self.wt_size = wt_size
-
-        
         self.sample_id = sample_id
         
         # Data imported and inferred from loci bed file in ResultBedReader = required
@@ -85,11 +84,11 @@ class MethylationCall:
         self.quality_score = quality_score
 
 class RepeatSequence:
-    def __init__(self, expansion: Expansion, read_name: str, repeat_size: int, sequence: str, 
+    def __init__(self, locus: str, read_name: str, repeat_size: int, sequence: str, 
                  start_position: int, end_position: int, 
                  left_flank: str, repeat_sequence: str, right_flank: str,
                  methylation_calls=None):
-        self.expansion = expansion
+        self.locus = locus
         self.read_name = read_name
         self.repeat_size = repeat_size
         self.sequence = sequence

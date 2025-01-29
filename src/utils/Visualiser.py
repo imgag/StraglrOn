@@ -116,7 +116,50 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
     plt.close()
 
 
-def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chromosome, start, end, reference_genome, bam_file):
+def process_motifs(sequence: str, motif: str, flank_length: int) -> dict:
+    """
+    Workflow  from here with read list:
+        - right and left flanks are cut off -> list (cut_read_list)
+        - motif is used in splitting (while keeping the splitting motif) the string generating list of motif -> list (read_motif_list)
+        - individual list entries are used to form a new string and use the iterator to find motif start coordinates, alternate motifs and motif lengths -> motif_coord
+        - dictionary for each motif is created with a list of the coordinates on the original read_list -> motif_dict_list
+    """
+
+    # Remove flanking regions
+    core_seq = sequence[flank_length:-flank_length]
+    
+    # Split at motif boundaries while keeping the motifs
+    clean_motif = motif.replace('*', '')  # Remove * from motif
+    escaped_motif = re.escape(clean_motif)  # Escape any remaining special characters     
+    parts = re.split("(" + escaped_motif + ")", core_seq)
+    
+    # Track positions and build motif dictionary
+    pos = flank_length  # Start after left flank
+    motifs_dict = {}
+    
+    for part in parts:
+        if part:  # Skip empty strings from consecutive motifs
+            if part == motif:
+                if motif in motifs_dict:
+                    motifs_dict[motif].append(pos)
+                else:
+                    motifs_dict[motif] = [pos]
+            else:
+                if part in motifs_dict:
+                    motifs_dict[part].append(pos)
+                else:
+                    motifs_dict[part] = [pos]
+            pos += len(part)
+                
+    return motifs_dict
+
+
+def alleleVisualiser(motif, flank_length, title, output_folder, chromosome, start, end, reference_genome, sequences):
+    """
+    Create waterfall plot visualization including methylation data
+    Args:
+        sequences: List[RepeatSequence] containing sequence and methylation data
+    """
     chr = chromosome
     start = int(start)
     end = int(end)
@@ -124,13 +167,13 @@ def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chro
     refGen = pysam.FastaFile(reference_genome)
     reference_sequence = refGen.fetch(chr, start, end)
     
-    # Read methylation data from BAM
-    methylation_data = extract_methylation_from_bam(bam_file, chr, start, end)
+    # Sort sequences by repeat size
+    sequences.sort(key=lambda x: x.repeat_size)
     
-    fasta_sequences = list(SeqIO.parse(open(fasta_file), 'fasta'))
-    read_list = []
-    for fasta in fasta_sequences:
-        read_list.append(str(fasta.seq))
+    # Calculate maximum sequence length
+    max_seq_length = max(len(seq.sequence) for seq in sequences)
+    # Also consider reference sequence length
+    max_seq_length = max(max_seq_length, len(reference_sequence))
     
     motif_colors = {
         "flank": "grey",
@@ -140,90 +183,35 @@ def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chro
         "unmethylated": "yellow"
     }
     
-    #readlist sorted by length for waterfall visualisation
-    read_list.sort(key=lambda x: len(x))
-
     motif = motif.lower()
-    flank_length = 25
 
-    '''
-    Workflow  from here with read list:
-        - right and left flanks are cut off -> list (cut_read_list)
-        - motif is used in splitting (while keeping the splitting motif) the string generating list of motif -> list (read_motif_list)
-        - individual list entries are used to form a new string and use the iterator to find motif start coordinates, alternate motifs and motif lengths -> motif_coord
-        - dictionary for each motif is created with a list of the coordinates on the original read_list -> motif_dict_list
-    '''
-
-    cut_read_list = []
-    for x in read_list:
-        cut = x[flank_length:-flank_length]
-        cut_read_list.append(cut)
-
-    cut_read_list.insert(len(cut_read_list), reference_sequence.lower())
-    read_motif_list = []
-    for x in cut_read_list:
-        read_motif = re.split("(" +motif +")", x)
-        read_motif_list.append(read_motif)
-
+    # Process sequences to get motifs
     motifs_dict_list = []
+    for seq in sequences:
+        motifs_dict_list.append(process_motifs(seq.sequence, motif, flank_length))
 
-    for x in read_motif_list:
-        
-        new_seq = []
-        motif_coords = []
-        motifs_dict = {}
+    # Add reference sequence motifs
+    motifs_dict_list.append(process_motifs(reference_sequence.lower(), motif, flank_length))
 
-        for i, s in enumerate(x):
-
-            if x[i] == motif:
-                
-                if motif in motifs_dict:
-                    motifs_dict[motif].append(len(new_seq)+flank_length)
-                else:
-                    motifs_dict.update({motif:[len(new_seq)+flank_length]})
-                    
-                new_seq += motif
-            elif x[i] != "":
-                
-                if x[i] in motifs_dict:
-                    motifs_dict[x[i]].append(len(new_seq)+flank_length)
-                else:
-                    motifs_dict.update({x[i]:[len(new_seq)+flank_length]})
-                    
-                new_seq += x[i]
-                
-        motifs_dict_list.append(motifs_dict)
-
-    # For setting of the scale of the x axis as well as the positioning of the right flank patch
-    size = len(max(cut_read_list, key=len))+flank_length*2
-
-    # define Matplotlib figure and axis
+    # Create visualization
     fig, ax = plt.subplots(figsize=(16, 11), dpi=300)
-    plot_title = fasta_sequences[0].description.split(" ")[1] + "_" + motif
-    # Plot dimension depending on number and maximum length
-    plt.xlim([0,size])
-    plt.ylim([0, (len(read_list)+1)*10])
+    plot_title = title + "_" + motif
+    plt.xlim([0, max_seq_length])  # Use calculated max length
+    plt.ylim([0, (len(sequences)+2)*10])  # +2 for reference sequence and padding
     
-    # Read methylation data if fastq file provided
-    methylation_data = {}
-    if fastq_file:
-        methylation_data = read_methylation_from_fastq(fastq_file)
-    
-    # Pass methylation data to rectangleMaker
     patches, color_list, labels = rectangleMaker(
         motif_colors, 
         motifs_dict_list, 
-        size, 
-        flank_length, 
-        motif,
-        methylation_data
+        sequences,  # Pass the sorted sequences directly
+        flank_length,
+        motif
     )
     
     our_cmap = ListedColormap(color_list)
     patches_collection = PatchCollection(patches, cmap=our_cmap)
     patches_collection.set_array(np.arange(len(patches)))
     ax.add_collection(patches_collection)
-    handles=[]
+    handles = []
 
     for patch_color in set(color_list):
         patch = matplotlib.patches.Patch(color=patch_color, label=labels[patch_color])
@@ -232,56 +220,47 @@ def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chro
     plt.legend(handles=handles, loc="lower right")
     plt.title(plot_title)
     plt.axis("off")
-    plt.show()
     plt.savefig((output_folder + "/" + title + ".svg").replace(":", "_"), format="svg")
     plt.close()
 
 
-def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif, methylation_data=None):
+def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif, methylation_data=None, read_names=None):
     patches = []
     color_list = []
     labels = {}
     
-    for i, x in enumerate(motif_coord_list):
-        color_chooser = 0
-        color = motif_colors[color_chooser]
-        patches.append(Rectangle((0, i*10), flank_length, 5, label="Flank"))
-        color_list.append(color)
-        labels.update({color: "Flank"})
+    for i, motifs_dict in enumerate(motif_coord_list):
+        # Create base rectangles for sequence elements
+        for motif_type, positions in motifs_dict.items():
+            for pos in positions:
+                rect = Rectangle((pos, 10*i), len(motif_type), 5)
+                patches.append(rect)
+                
+                if motif_type == motif:
+                    color_list.append(motif_colors["motif"])
+                    labels[motif_colors["motif"]] = "Repeat Motif"
+                elif len(motif_type) == len(motif):
+                    color_list.append(motif_colors["non_motif"])
+                    labels[motif_colors["non_motif"]] = "Non-motif Sequence"
+                else:
+                    color_list.append(motif_colors["flank"])
+                    labels[motif_colors["flank"]] = "Flanking Sequence"
         
-        patches.append(Rectangle((size-flank_length, i*10), flank_length, 5, label="Flank"))
-        color_list.append(color)
-        labels.update({color:"Flank"})
-            
-        for key in x:
-            if key == motif:
-                color = motif_colors[1]
-                for coord in x[key]:
-                    patches.append(Rectangle((coord, 10*i), len(key), 5, label=key))
-                    color_list.append(color)
-                labels.update({color:key})
-            
-            else:
-                color = motif_colors[2]
-                for coord in x[key]:
-                    patches.append(Rectangle((coord, 10*i), len(key), 5, label="non-motif"))
-                    color_list.append(color)
-                labels.update({color:"non-motif"})
-        
-        # Add methylation visualization
-        if methylation_data:
-            read_name = list(x.keys())[0]
+        # Add methylation visualization if available
+        if methylation_data and read_names and i < len(read_names)-1:  # Skip reference sequence
+            read_name = read_names[i]
             if read_name in methylation_data:
                 for methyl_call in methylation_data[read_name]:
-                    plot_pos = methyl_call.position + flank_length
-                    rect = Rectangle((plot_pos, 10*i), 2, 5)
-                    patches.append(rect)
-                    
-                    if methyl_call.is_methylated:
-                        color_list.append(motif_colors["methylated"])
-                        labels[motif_colors["methylated"]] = "Methylated CpG"
-                    else:
-                        color_list.append(motif_colors["unmethylated"])
-                        labels[motif_colors["unmethylated"]] = "Unmethylated CpG"
+                    plot_pos = methyl_call.position - flank_length
+                    if 0 <= plot_pos <= len(motifs_dict.get(motif, [])):
+                        rect = Rectangle((plot_pos, 10*i), 2, 5)
+                        patches.append(rect)
+                        
+                        if methyl_call.is_methylated:
+                            color_list.append(motif_colors["methylated"])
+                            labels[motif_colors["methylated"]] = "Methylated CpG"
+                        else:
+                            color_list.append(motif_colors["unmethylated"])
+                            labels[motif_colors["unmethylated"]] = "Unmethylated CpG"
     
     return patches, color_list, labels
