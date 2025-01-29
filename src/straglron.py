@@ -7,6 +7,7 @@ import utils.ReaderAnalyser as ra
 import utils.Visualiser as vis
 import utils.extract_repeats as extract_repeats
 import shutil
+import pysam
 
 
 def is_valid_file(parser, arg, type):
@@ -99,12 +100,20 @@ def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
     if args.alleles:
         print("Generating allele composition graphs ...")
         
-        for x in output_expansion:
-            seqs, methylations = extract_repeats.parse_bam(args.bam, x.chr + ":"+ x.start + "-" + x.end, args.flank)
-            extract_repeats.write_fasta(seqs, args.output + "/" + x._title + ".fa")
-           
+        for x in output_expansion:    
+            
+            # Get sequences and methylation data
+            sequences = extract_repeats.parse_bam(
+                args.bam,
+                x,
+                args.flank
+            )
+            
+            # Write FASTA file
+            extract_repeats.write_fasta(sequences, args.output + "/" + x._title + ".fa")
+            
+            # Create visualization
             vis.alleleVisualiser(
-                args.output + "/" + x._title + ".fa",
                 x.repeat_unit,
                 args.flank,
                 x._title,
@@ -113,7 +122,7 @@ def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
                 x.start,
                 x.end,
                 args.genome,
-            )
+                sequences)
         
         print("Allele composition graphs completed.")
 

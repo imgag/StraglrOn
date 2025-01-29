@@ -4,7 +4,7 @@ import argparse
 import pysam
 from collections import defaultdict
 import re
-from src.utils.Structures import MethylationCall
+from .Structures import RepeatSequence, MethylationCall
 
 def parse_tsv(tsv, loci=None):
     support = defaultdict(dict)
@@ -31,76 +31,119 @@ def parse_tsv(tsv, loci=None):
     return support
 
 
-def parse_bam(bam, support, flank_size=10):
-    seqs = {}
-    methylations = {}
-    for locus in support:
-        seqs[locus] = []
-        chrom, start, end = re.split('[:-]', locus)
-        for aln in bam.fetch(chrom, int(start), int(end)):
-                      
-            if aln.query_name in support[locus] and not aln.query_name in seqs:
-                rlen = aln.infer_read_length()
-                if support[locus][aln.query_name][2] == '+':
-                    start, end = support[locus][aln.query_name][0], support[locus][aln.query_name][0] + support[locus][aln.query_name][1]
-                else:
-                    start = rlen - (support[locus][aln.query_name][0] + support[locus][aln.query_name][1])
-                    end = start + support[locus][aln.query_name][1]
+def parse_bam(bam_file, expansion, flank_size=10):
+    """
+    Parse BAM file to extract sequences and methylation data
+    
+    Args:
+        bam_file: Path to BAM file or pysam.AlignmentFile object
+        region: String in format "chr:start-end"
+        flank_size: Size of flanking regions to include
+    """
+    if isinstance(bam_file, str):
+        bam = pysam.AlignmentFile(bam_file, "rb")
+    else:
+        bam = bam_file
 
-                try:
-                    repeat_seq = aln.query_sequence[start:end].lower()
-                    left = max(0, start - flank_size), start
-                    right = end, min(end + flank_size, rlen)
-                    left_seq = aln.query_sequence[left[0]:left[1]].upper()
-                    right_seq = aln.query_sequence[right[0]:right[1]].upper()
-                    seq = left_seq + repeat_seq + right_seq
-                    seqs[locus].append((aln.query_name, support[locus][aln.query_name][1], seq))
+    region = f"{expansion.chr}:{expansion.start}-{expansion.end}"
 
-                    # Extract Methylation data
-                    methylation_calls = []
-        
-                    if aln.has_tag('MM') and aln.has_tag('ML'):
-                        mod_string = aln.get_tag('MM')
-                        mod_quals = aln.get_tag('ML')
+  
+    # Parse region
+    chrom, pos = region.split(":")
+    start, end = map(int, pos.split("-"))
+    
+    seqs = []
+    
+    for aln in bam.fetch(chrom, start, end):
+        if aln.is_secondary or aln.is_supplementary:
+            continue
+            
+        try:
+            # Get sequence
+            sequence = aln.query_sequence
+            if not sequence:
+                continue
+                
+            rlen = len(sequence)
+            
+            # Extract repeat region with flanks
+            repeat_start = max(0, aln.reference_start - start)
+            repeat_end = min(rlen, repeat_start + (end - start))
+            
+            repeat_seq = sequence[repeat_start:repeat_end].lower()
+            
+            # Extract flanking sequences
+            left_start = max(0, repeat_start - flank_size)
+            right_end = min(rlen, repeat_end + flank_size)
+            
+            left_seq = sequence[left_start:repeat_start].upper()
+            right_seq = sequence[repeat_end:right_end].upper()
+            
+            full_seq = left_seq + repeat_seq + right_seq
+            
+            # Extract methylation data
+            methylation_calls = []
+            if aln.has_tag('MM') and aln.has_tag('ML'):
+                mod_string = aln.get_tag('MM')
+                mod_quals = aln.get_tag('ML')
+                
+                for mod in mod_string.split(';'):
+                    if not mod or not mod.startswith('C+m'):
+                        continue
                         
-                        # Parse modification string (format: "C+m,5,0,1;")
-                        for mod in mod_string.split(';'):
-                            if not mod or not mod.startswith('C+m'):
-                                continue
-                                
-                            _, positions = mod.split(',', 1)
-                            positions = list(map(int, positions.split(',')))
-                            
-                            for pos, qual in zip(positions, mod_quals):
-                                methylation_calls.append(
-                                    MethylationCall(
-                                        position=pos,
-                                        is_methylated=qual >= 200,  # Standard threshold
-                                        quality_score=qual
-                                    )
+                    _, deltas = mod.split(',', 1)
+                    deltas = list(map(int, deltas.split(',')))
+                    pos = 0
+                    for delta, qual in zip(deltas, mod_quals):
+                        pos += delta + 1 # Delta: Number of bases to skip. Add 1 to get the position of the modified base
+                        if left_start <= pos <= right_end:  # Only include methylation calls in our region
+                            methylation_calls.append(
+                                MethylationCall(
+                                    position=pos - left_start,  # Adjust position relative to sequence start
+                                    is_methylated=qual >= 200,
+                                    quality_score=qual
                                 )
-        
-                    if methylation_calls:
-                        methylations[locus] = methylation_calls
-                except:
-                    print('problem extracting repeat from {}'.format(aln.query_name))
+                            )
 
-    return seqs, methylations
+    
+            # Store results
+            seqs.append(
+                RepeatSequence(
+                    expansion= expansion,
+                    read_name= aln.query_name, 
+                    repeat_size= repeat_end - repeat_start, 
+                    sequence= full_seq,
+                    start_position= aln.reference_start,
+                    end_position= aln.reference_end,
+                    left_flank= left_seq,
+                    repeat_sequence= repeat_seq,
+                    right_flank= right_seq,
+                    methylation_calls= methylation_calls
+                )
+            )
+                
+        except Exception as e:
+            print(f'Problem extracting repeat from {aln.query_name}: {str(e)}')
+            continue
+
+    if isinstance(bam_file, str):
+        bam.close()
+        
+    return seqs
 
 def write_fasta(seqs, out_fa):
     with open(out_fa, 'w') as out:
-        for locus in sorted(seqs.keys()):
-            for read_name, repeat_size, seq in seqs[locus]:
-                out.write('>{} {} {}\n{}\n'.format(read_name, locus, repeat_size, seq))
+        for seq in seqs:
+            out.write('>{} {}:{}-{} {}\n{}\n'.format(
+                seq.read_name,
+                seq.expansion.chr,
+                seq.expansion.start,
+                seq.expansion.end,
+                seq.repeat_size,
+                seq.sequence
+            ))
 
 def parse_args():
     parser = argparse.ArgumentParser()
     args = parser.parse_args()
     return args
-    
-def fastaMaker(tsv, locus, bam, flank_size, repeat_fasta_path):
-    
-    support = parse_tsv(tsv, locus)
-    bam = pysam.AlignmentFile(bam)
-    seqs = parse_bam(bam, support, flank_size)
-    write_fasta(seqs, repeat_fasta_path)

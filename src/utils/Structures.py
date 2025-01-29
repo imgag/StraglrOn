@@ -79,7 +79,23 @@ class Locus:
 
 # Methylation call class used in extract_repeats.py
 class MethylationCall:
-    def __init__(self, position, is_methylated, quality_score):
+    def __init__(self, position: int, is_methylated: bool, quality_score: float):
         self.position = position
         self.is_methylated = is_methylated
         self.quality_score = quality_score
+
+class RepeatSequence:
+    def __init__(self, expansion: Expansion, read_name: str, repeat_size: int, sequence: str, 
+                 start_position: int, end_position: int, 
+                 left_flank: str, repeat_sequence: str, right_flank: str,
+                 methylation_calls=None):
+        self.expansion = expansion
+        self.read_name = read_name
+        self.repeat_size = repeat_size
+        self.sequence = sequence
+        self.start_position = start_position
+        self.end_position = end_position
+        self.left_flank = left_flank
+        self.repeat_sequence = repeat_sequence
+        self.right_flank = right_flank
+        self.methylation_calls = methylation_calls if methylation_calls else []
