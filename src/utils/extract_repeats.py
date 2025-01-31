@@ -7,14 +7,18 @@ import re
 from .Structures import RepeatSequence, MethylationCall
 
 def parse_tsv(tsv, loci=None):
+    """Parse TSV file and return read support information"""
     support = defaultdict(dict)
+    
     with open(tsv, 'r') as ff:
         for line in ff:
             if line[0] == '#':
                 continue
+                
             cols = line.rstrip().split('\t')
             locus = cols[0] + ":" + cols[1] + "-" + cols[2]
             status = cols[14].strip()  # was "does not exist"
+
             # ignore skipped/failed reads
             if status != "full":
                 continue
@@ -27,7 +31,7 @@ def parse_tsv(tsv, loci=None):
                 continue
             # print(read_name)
             support[locus][read_name] = int(read_start), int(size), strand
-        
+    
     return support
 
 

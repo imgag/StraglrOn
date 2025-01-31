@@ -11,7 +11,6 @@
                 "${workspaceFolder}/testdata/24056LRa008_01_repeats.bed",
                 "${workspaceFolder}/testdata/24056LRa008_01_repeats.tsv",
                 "${workspaceFolder}/testdata/straglr_variant_catalog_grch38.bed",
-                "--hist", 
                 "-o", "${workspaceFolder}/out",
                 "--bam", "${workspaceFolder}/testdata/24056LRa008_01.bam",
                 "--genome", "${workspaceFolder}/testdata/GRCh38.fa",

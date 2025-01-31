@@ -60,90 +60,22 @@ parser.add_argument("--genome", type=str, help="location of reference genome")
 
 args = parser.parse_args()
 
-
-def outputWriter(output_expansion: "list[Expansion]", sample_id, args):
-            
-    # Base output here
-    result_file_path = args.output + "/" + sample_id + ".tsv"
-    if not (os.path.exists(args.output)):
-        os.mkdir(args.output)
-        
-    with open(result_file_path, 'w') as f:
-        print("Writing result file ...")
-        f.write("#chr\tstart\tend\trepeat_id\trepeat_unit\tcopy_number\tsize\twt_size\tin_pathogenic_range\tsize_difference\tallele1_support\tallele2_support\tscore\n")
-        
-        if args.altclust:
-            for x in output_expansion:
-                f.write("{}\t{}\t{}\t{}\t{:.1f}/{:.1f}\t{}/{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(x.chr, x.start, x.end, x.repeat_id, (x.new_allele1/len(x.repeat_unit)), (x.new_allele2/len(x.repeat_unit)), x.new_allele1, x.new_allele2, x.wt_size, x.new_in_pathogenic_range, x.new_size_difference, x.new_allele1_support, x.new_allele2_support,x.new_norm_score))
-        else:
-            for x in output_expansion:
-                f.write("{}\t{}\t{}\t{}\t{:.1f}/{:.1f}\t{}/{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(x.chr, x.start, x.end, x.repeat_id, (x.allele1_size/len(x.repeat_unit)), (x.allele2_size/len(x.repeat_unit)), x.allele1_size, x.allele2_size, x.wt_size, x.in_pathogenic_range, x.size_difference, x.allele1_support, x.allele2_support,x.norm_score))                
-
-        print("Result file completed.")      
-    
-    # Base output plus Histograms
-    if args.hist:
-        print("Generating read distribution histograms ...")
-        
-        if args.altclust:
-            for x in output_expansion:
-                vis.plotHistogram(x, args.output, args.altclust)
-        else:
-            for x in output_expansion:
-                vis.plotHistogram(x, args.output, args.altclust)
-                
-        print("Histograms completed.")
-
-    
-    # Base with Allele Visualization
-    if args.alleles:
-        print("Generating allele composition graphs ...")
-        
-        for x in output_expansion:    
-            
-            support = extract_repeats.parse_tsv(args.path_input_tsv, x.locus)
-
-            # Get sequences and methylation data
-            sequences = extract_repeats.parse_bam(
-                args.bam,
-                support,
-                args.flank
-            )
-            
-            # Write FASTA file
-            extract_repeats.write_fasta(sequences, args.output + "/" + x._title + ".fa")
-            
-            # Create visualization
-            vis.alleleVisualiser(
-                x.repeat_unit,
-                args.flank,
-                x._title,
-                args.output,
-                x.chr,
-                x.start,
-                x.end,
-                args.genome,
-                sequences)
-        
-        print("Allele composition graphs completed.")
-
-
 def main():
-        
+
+    # Read files        
     loci_dict = ra.lociBedReader(args.loci_file)
     expansions = ra.resultBedReader(args.path_input_bed, loci_dict)
-    sample_id = Path(args.path_input_bed).stem
 
+    # Generate Histogram data and update Extensions
     vis.getHistData(args.path_input_tsv, expansions)
     
+    # Alternative Clustering
     for expansion_object in expansions:
-        if __name__ == '__main__':
-            expansion_object
         if args.altclust:
             ra.newGenotyping(expansion_object, args.cutoff, False)
-            
         ra.expansionScorer(expansion_object, args.altclust)
 
+    # New scoring
     if args.score:
         #Sorts expansions by calculated normalized score
         expansions.sort(key=lambda x: float("-Inf") if x.norm_score is None else x.norm_score, reverse=True)
@@ -151,8 +83,55 @@ def main():
     else:
         #Sorts expansion by chromosome
         expansions.sort(key=lambda x: x.chr)
-        
-    outputWriter(expansions, sample_id, args)
     
+   
+    if not os.path.exists(args.output):
+        os.mkdir(args.output)
+     
+    # Generate histograms
+    if args.hist:
+        print("Generating read distribution histograms ...")
+        for expansion in expansions:
+            vis.plotHistogram(expansion, args.output, args.altclust)
+        print("Histograms completed.")
+
+    # Generate allele visualizations
+    if args.alleles:
+        print("Generating allele composition graphs ...")
+        for expansion in expansions:
+            # Get read support data
+            support = extract_repeats.parse_tsv(
+                args.path_input_tsv,
+                expansion.chr + ":"+ expansion.start + "-" + expansion.end 
+            )
+            
+            if not support:
+                print(f"No reads found for {expansion.repeat_id}, skipping visualization")
+                continue
+
+            # Get sequences
+            sequences = extract_repeats.parse_bam(
+                args.bam,
+                support,
+                args.flank
+            )
+            
+            if sequences:
+                # Write FASTA and create visualization
+                fasta_path = os.path.join(args.output, f"{expansion.title}.fa")
+                extract_repeats.write_fasta(sequences, fasta_path)
+                
+                vis.alleleVisualiser(
+                    expansion.repeat_unit,
+                    args.flank,
+                    expansion.title,
+                    args.output,
+                    expansion.chr,
+                    expansion.start,
+                    expansion.end,
+                    args.genome,
+                    sequences
+                )
+
 if __name__ == "__main__":
     main()
