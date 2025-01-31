@@ -2,12 +2,22 @@
     "version": "0.2.0",
     "configurations": [        
         {
-            "name": "Python: Current File",
+            "name": "Debug with testdata",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/src/straglron.py",
             "console": "integratedTerminal",
-            "args": ["/mnt/storage2/users/ahbraut2/data/snakemake_test/benchmark/straglr_test_new_Loci/og/Sample012_23014LRa.bed","--hist", "/mnt/storage2/users/ahbraut2/data/snakemake_test/benchmark/straglr_test_new_Loci/og/Sample012_23014LRa.tsv","-o", "/mnt/storage2/users/ahbraut2/scripts/TestFolder/Home", "/mnt/storage2/users/ahbraut2/data/Master_Bedfiles/RepeatLoci_straglr_LT_V2.bed" , "--bam","/mnt/storage2/users/ahbraut2/data/ONT_Pilot_TNAMSE_Links/Sample012_23014LRa.bam","--genome","/mnt/storage2/users/ahbraut2/data/genome_hg38/genome.fa" , "--cutoff", "3", "--alleles", "--flank", "25"]
+            "args": [
+                "${workspaceFolder}/testdata/24056LRa008_01_repeats.bed",
+                "${workspaceFolder}/testdata/24056LRa008_01_repeats.tsv",
+                "${workspaceFolder}/testdata/straglr_variant_catalog_grch38.bed",
+                "--hist", 
+                "-o", "${workspaceFolder}/out",
+                "--bam", "${workspaceFolder}/testdata/24056LRa008_01.bam",
+                "--genome", "${workspaceFolder}/testdata/GRCh38.fa",
+                "--alleles",
+                "--flank", "25"
+            ]
         }
     ]
 }

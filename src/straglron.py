@@ -15,8 +15,7 @@ def is_valid_file(parser, arg, type):
     Check if the provided file exists and has a .bed or .tsv extension.
     """
     if type == "bed":
-        if not os.path.exists(arg):
-            parser.error(f"The file '{arg}' does not exist.")
+        if not os.path.exists(arg):            parser.error(f"The file '{arg}' does not exist.")
         elif not arg.endswith('.bed'):
             parser.error(f"The file '{arg}' is not a .bed file.")
         else:

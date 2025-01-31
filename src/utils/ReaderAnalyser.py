@@ -56,7 +56,7 @@ def resultBedReader(file, loci_dict):
                     chr=chr, 
                     start=start, 
                     end=end,
-                    locus=coords, 
+                    locus=locus, 
                     repeat_id=motif, 
                     repeat_unit=ref_motif,
                     ref_motif=ref_motif,
