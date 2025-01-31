@@ -1,11 +1,10 @@
 #Expansion class used for variable and function storage for analysis and presentation        
 class Expansion:
-    def __init__(self, chr, start, end, locus, repeat_id, repeat_unit, ref_motif, allele1_size, allele2_size, wt_size, pathogenic_range, copy_numberA1, copy_numberA2, allele1_support, allele2_support, sample_id):
+    def __init__(self, chr, start, end, repeat_id, repeat_unit, ref_motif, allele1_size, allele2_size, wt_size, pathogenic_range, copy_numberA1, copy_numberA2, allele1_support, allele2_support, sample_id):
         # Data imported from straglr output bamfile in ResultBedReader = required
         self.chr = chr
         self.start = start
         self.end = end
-        self.locus = locus
         self.repeat_id = repeat_id
         self.repeat_unit = repeat_unit
         self.ref_motif = ref_motif
