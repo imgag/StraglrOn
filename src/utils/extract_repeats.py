@@ -89,7 +89,7 @@ def parse_bam(bam_file, support, flank_size=10):
                                 if int(left[0]) <= pos <= int(right[1]):  # Only include methylation calls in our region
                                     methylation_calls.append(
                                         MethylationCall(
-                                            position=pos - start,  # Adjust position relative to sequence start
+                                            position=pos-left[0],  # Adjust position relative to sequence start
                                             is_methylated=qual >= 200,
                                             quality_score=qual
                                         )
