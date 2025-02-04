@@ -77,10 +77,30 @@ class Locus:
 
 # Methylation call class used in extract_repeats.py
 class MethylationCall:
-    def __init__(self, position: int, is_methylated: bool, quality_score: float):
+    def __init__(self, position: int, modifications: dict = None):
         self.position = position
-        self.is_methylated = is_methylated
-        self.quality_score = quality_score
+        self.modifications = modifications or {}  # Format: {'m': qual, 'h': qual}
+    
+    def get_modification_state(self):
+        """Returns the most likely modification state based on quality scores"""
+        total_qual = sum(self.modifications.values())
+        
+        # Base is unmodified if total modification probability < 50%
+        if total_qual < 127:  # 255/2 rounded down
+            return 'unmodified'
+        
+        # Return modification with highest quality score
+        return max(self.modifications.items(), key=lambda x: x[1])[0]
+    
+    def is_modified(self):
+        """Returns True if base is likely methylated (m modification)"""
+        return self.get_modification_state() in ['m', 'h']
+    
+    def quality_score(self):
+        """Returns the quality score for the most likely modification"""
+        if not self.modifications:
+            return 0
+        return max(self.modifications.values())
 
 class RepeatSequence:
     def __init__(self, locus: str, read_name: str, repeat_size: int, sequence: str, 

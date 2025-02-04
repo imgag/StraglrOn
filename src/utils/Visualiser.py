@@ -173,6 +173,7 @@ def alleleVisualiser(repeat_unit, flank_length, title, output_folder, chrom, sta
         "motif": "green",
         "non_motif": "gray",
         "methylated": "red",
+        "hydroxymethylated": "orange",
         "unmethylated": "blue"
     }
     
@@ -246,37 +247,46 @@ def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequence
         # First add methylation visualization
         if sequences[i].methylation_calls:
             for methyl_call in sequences[i].methylation_calls:
-                plot_pos = methyl_call.position + flank_length
                 
-                if 0 <= plot_pos <= len(sequences[i].sequence) - flank_length:
-                    rect = Rectangle((plot_pos, 6*i-1), 2, 6, 
+                pos = methyl_call.position
+
+                if 0 <= pos <= len(sequences[i].sequence) - flank_length:
+                    rect = Rectangle((pos, 6*i-1), 2, 6, 
                                    facecolor='none',  # No fill, only border
                                    linewidth=0.5,
                                    joinstyle='round')
                     patches.append(rect)
                     
-                    if methyl_call.is_methylated:
+                    mod_state = methyl_call.get_modification_state()
+                    if mod_state == 'm':
                         color_list.append(colors["methylated"])
-                        labels.update({colors["methylated"]:"Methylated CpG"})
+                        labels.update({colors["methylated"]:"5mC"})
+                    elif mod_state == 'h':
+                        color_list.append(colors["hydroxymethylated"])
+                        labels.update({colors["hydroxymethylated"]:"5hmC"})
                     else:
                         color_list.append(colors["unmethylated"])
-                        labels.update({colors["unmethylated"]:"Unmethylated CpG"})
+                        labels.update({colors["unmethylated"]:"Unmodified C"})
                 else:
-                    start_pos = size - flank_length - (len(sequences[i].sequence) - flank_length) + plot_pos
+                    start_pos = size - flank_length - (len(sequences[i].sequence) - flank_length) + pos
                     rect = Rectangle((start_pos, 6*i-1), 2, 6,
                                    facecolor='none',
                                    linewidth=0.5,
                                    joinstyle='round')
                     patches.append(rect)
                     
-                    if methyl_call.is_methylated:
+                    mod_state = methyl_call.get_modification_state()
+                    if mod_state == 'm':
                         color_list.append(colors["methylated"])
-                        labels.update({colors["methylated"]:"Methylated CpG"})
+                        labels.update({colors["methylated"]:"5mC"})
+                    elif mod_state == 'h':
+                        color_list.append(colors["hydroxymethylated"])
+                        labels.update({colors["hydroxymethylated"]:"5hmC"})
                     else:
                         color_list.append(colors["unmethylated"])
-                        labels.update({colors["unmethylated"]:"Unmethylated CpG"})
+                        labels.update({colors["unmethylated"]:"Unmodified C"})
 
-        # Add flanking sequence
+        # Add sequence rectangles
         patches.append(Rectangle((0, i*6), flank_length, 4, 
                                facecolor='none',
                                linewidth=0.5,
@@ -289,9 +299,7 @@ def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequence
                                linewidth=0.5,
                                joinstyle='round'))
         color_list.append(colors["flank"])
-        labels.update({colors["flank"]:"Flank"})
-
-        # Add motif block rectangles    
+        
         for key in x:
             if key == motif:
                 for coord in x[key]:
