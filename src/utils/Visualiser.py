@@ -123,6 +123,7 @@ def process_motifs(seqlist, motif, flank_length):
     # Initialize dictionary for motifs and their positions
     motifs_dict = {}
     new_seq = []
+    found_any_motif = False
 
     for i,seq in enumerate(seqlist):
 
@@ -134,6 +135,7 @@ def process_motifs(seqlist, motif, flank_length):
                 motifs_dict.update({motif:[len(new_seq)+flank_length]})
                 
             new_seq += motif
+
         elif seq != "":
             
             if seq in motifs_dict:
@@ -142,10 +144,14 @@ def process_motifs(seqlist, motif, flank_length):
                 motifs_dict.update({seq:[len(new_seq)+flank_length]})
                 
             new_seq += seq
+        
     return motifs_dict
 
 def alleleVisualiser(repeat_unit, flank_length, title, output_folder, chrom, start, end, genome_path, sequences):
     """Create allele visualization plot"""
+    # Sort sequences by repeat length
+    sequences = sorted(sequences, key=lambda x: x.repeat_size, reverse=True)
+    
     # Get reference sequence
     with pysam.FastaFile(genome_path) as fasta:
         reference_sequence = fasta.fetch(chrom, int(start), int(end))
@@ -154,38 +160,39 @@ def alleleVisualiser(repeat_unit, flank_length, title, output_folder, chrom, sta
 
     # Process motifs
     motifs_dict_list = []
-    methylations_list = []
+
+    max_seq_len = 0
     for seq in sequences:
         # Extracts the sequence excluding the flanking regions
         expansion_seq = seq.sequence[flank_length:-flank_length]
-        motif_matches = re.split("(" +motif +")", expansion_seq)
+        max_seq_len = max(max_seq_len, len(expansion_seq))
+        motif_matches = re.split("(" + motif + ")", expansion_seq)
         motifs_dict_list.append(process_motifs(motif_matches, motif, flank_length))
+    
+    # Remove empty motifs
+    motifs_dict_list = [d for d in motifs_dict_list if d != {}]
+
+    max_size = max_seq_len + 2 * flank_length # Add flanks
 
     # Add reference sequence
-    #motifs_dict_list.append(process_motifs(reference_sequence, motif, flank_length))
-    #methylations_list.append([])
+    ref_repeat = reference_sequence[flank_length:-flank_length]
+    ref_repeat_motif_matches = re.split("(" + motif + ")", ref_repeat)
+    ref_motifs = process_motifs(ref_repeat_motif_matches, motif, flank_length)
 
-    plt.figure(figsize=(20, len(motifs_dict_list)), dpi=300)
-    
+    # Create a wider figure
+    plt.figure(figsize=(16, 3+len(motifs_dict_list)*0.5), dpi=300)  # Increased width
+
     # Define colors for different sequence types
     motif_colors = {
-        "flank": "lightgray",
-        "motif": "green",
-        "non_motif": "gray",
-        "methylated": "red",
-        "hydroxymethylated": "orange",
-        "unmethylated": "blue"
+        "flank": "#D3D3D3",  # Light Gray
+        "motif": "#4CAF50",  # Green
+        "non_motif": "#A9A9A9",  # Dark Gray
+        "methylated": "#F44336",  # Red
+        "hydroxymethylated": "#FFA500",  # Orange
+        "unmethylated": "#007BFF"  # Blue
     }
     
-    # Calculate max sequence length
-    max_size = 0
-    for d in motifs_dict_list:
-        size = 0
-        for key, coords in d.items():
-            if isinstance(coords, list):
-                size += len(key) * len(coords)
-        max_size = max(max_size, size + 2 * flank_length)
-    
+
     # Create rectangles for visualization
     patches, colors, labels = rectangleMaker(
         motif_colors, 
@@ -220,11 +227,14 @@ def alleleVisualiser(repeat_unit, flank_length, title, output_folder, chrom, sta
     
     plt.xticks(tick_positions, tick_labels)
     plt.xlabel('Repeat length (bp)')
+
+    # Hide y-axis ticks and labels
+    ax.yaxis.set_visible(False)
     
     # Rest of the visualization parameters
-    plt.xlim(-10, max_size + 10)
-    plt.ylim(-5, 6 * len(motifs_dict_list))
-    plt.title(title)
+    plt.xlim(-5, max_size + 5)
+    plt.ylim(-2, 4 * len(motifs_dict_list))
+    plt.title(f"{title}_{motif}")  # Updated title
     
     # Create legend
     legend_elements = [plt.Rectangle((0,0), 1, 1, facecolor=color, label=label)
@@ -244,14 +254,19 @@ def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequence
     labels = {}
     
     for i, x in enumerate(motif_coord_list):
+        
+        # Hide reads with no motif matches frm plot
+        if x == {}:
+            continue
+
         # First add methylation visualization
         if sequences[i].methylation_calls:
             for methyl_call in sequences[i].methylation_calls:
                 
                 pos = methyl_call.position
 
-                if 0 <= pos <= len(sequences[i].sequence) - flank_length:
-                    rect = Rectangle((pos, 6*i-1), 2, 6, 
+                if 1 <= pos <= len(sequences[i].sequence) - flank_length:
+                    rect = Rectangle((pos-1, 4*i-0.5), 1, 4, 
                                    facecolor='none',  # No fill, only border
                                    linewidth=0.5,
                                    joinstyle='round')
@@ -269,7 +284,7 @@ def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequence
                         labels.update({colors["unmethylated"]:"Unmodified C"})
                 else:
                     start_pos = size - flank_length - (len(sequences[i].sequence) - flank_length) + pos
-                    rect = Rectangle((start_pos, 6*i-1), 2, 6,
+                    rect = Rectangle((start_pos-1, 4*i-0.5), 1, 4,
                                    facecolor='none',
                                    linewidth=0.5,
                                    joinstyle='round')
@@ -287,14 +302,14 @@ def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequence
                         labels.update({colors["unmethylated"]:"Unmodified C"})
 
         # Add sequence rectangles
-        patches.append(Rectangle((0, i*6), flank_length, 4, 
+        patches.append(Rectangle((0, i*4), flank_length, 3, 
                                facecolor='none',
                                linewidth=0.5,
                                joinstyle='round'))
         color_list.append(colors["flank"])
         labels.update({colors["flank"]:"Flank"})
         
-        patches.append(Rectangle((size-flank_length, i*6), flank_length, 4,
+        patches.append(Rectangle((size-flank_length, i*4), flank_length, 3,
                                facecolor='none',
                                linewidth=0.5,
                                joinstyle='round'))
@@ -303,7 +318,7 @@ def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequence
         for key in x:
             if key == motif:
                 for coord in x[key]:
-                    patches.append(Rectangle((coord, 6*i), len(key), 4,
+                    patches.append(Rectangle((coord, 4*i), len(key), 3,
                                           facecolor='none',
                                           linewidth=0.5,
                                           joinstyle='round'))
@@ -311,7 +326,7 @@ def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequence
                 labels.update({colors["motif"]:"Motif"})
             else:
                 for coord in x[key]:
-                    patches.append(Rectangle((coord, 6*i), len(key), 4,
+                    patches.append(Rectangle((coord, 4*i), len(key), 3,
                                           facecolor='none',
                                           linewidth=0.5,
                                           joinstyle='round'))

@@ -55,7 +55,7 @@ parser.add_argument("-c", "--cutoff", type=int, default=2, help="Sets number of 
 
 parser.add_argument("--alleles", action="store_true", help="Turns on the allele visualization")
 parser.add_argument("--bam", type=str, help="Location of Bam file of interest")
-parser.add_argument("--flank", type=int, default=25, help="flank size. Default:25")
+parser.add_argument("--flank", type=int, default=50, help="flank size. Default:50")
 parser.add_argument("--genome", type=str, help="location of reference genome")
 
 args = parser.parse_args()
