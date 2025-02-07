@@ -75,7 +75,6 @@ def parse_bam(bam_file, support, flank_size=10):
     for locus in support:
         chrom, start, end = re.split('[:-]', locus)
         for aln in bam.fetch(chrom, int(start), int(end)):
-
             if aln.query_name in support[locus]:
                 rlen = aln.infer_read_length()
                 if support[locus][aln.query_name][2] == '+':
@@ -86,32 +85,35 @@ def parse_bam(bam_file, support, flank_size=10):
                     start = int(rlen - (support[locus][aln.query_name][0] + support[locus][aln.query_name][1])) 
                     end = int(start + support[locus][aln.query_name][1])
 
-                repeat_seq = aln.query_sequence[start:end].lower()
-                left = max(0, start - flank_size), start
-                right = end, min(end + flank_size, rlen)
-                left_seq = aln.query_sequence[left[0]:left[1]].upper()
-                right_seq = aln.query_sequence[right[0]:right[1]].upper()
-                seq = left_seq + repeat_seq + right_seq
+                # Check if aln.query_sequence is not None
+                if aln.query_sequence is not None:
+                    repeat_seq = aln.query_sequence[start:end].lower()
+                    left = max(0, start - flank_size), start
+                    right = end, min(end + flank_size, rlen)
+                    left_seq = aln.query_sequence[left[0]:left[1]].upper()
+                    right_seq = aln.query_sequence[right[0]:right[1]].upper()
+                    seq = left_seq + repeat_seq + right_seq
 
-                # Extract methylation data
-                methylation_calls = parse_modifications(aln, start, end, flank_size)
+                    # Extract methylation data
+                    methylation_calls = parse_modifications(aln, start, end, flank_size)
 
-                # Store results
-                seqs.append(
-                    RepeatSequence(
-                        locus= locus,
-                        read_name= aln.query_name, 
-                        repeat_size= end - start, 
-                        sequence= seq,
-                        start_position= aln.reference_start,
-                        end_position= aln.reference_end,
-                        left_flank= left_seq,
-                        repeat_sequence= repeat_seq,
-                        right_flank= right_seq,
-                        methylation_calls= methylation_calls
+                    # Store results
+                    seqs.append(
+                        RepeatSequence(
+                            locus=locus,
+                            read_name=aln.query_name, 
+                            repeat_size=end - start, 
+                            sequence=seq,
+                            start_position=aln.reference_start,
+                            end_position=aln.reference_end,
+                            left_flank=left_seq,
+                            repeat_sequence=repeat_seq,
+                            right_flank=right_seq,
+                            methylation_calls=methylation_calls
+                        )
                     )
-                )
-
+                else:
+                    print(f"Warning: No query sequence for alignment {aln.query_name}. Skipping this alignment.")
 
     if isinstance(bam_file, str):
         bam.close()

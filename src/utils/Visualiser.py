@@ -180,7 +180,7 @@ def alleleVisualiser(repeat_unit, flank_length, title, output_folder, chrom, sta
     ref_motifs = process_motifs(ref_repeat_motif_matches, motif, flank_length)
 
     # Create a wider figure
-    plt.figure(figsize=(16, 3+len(motifs_dict_list)*0.5), dpi=300)  # Increased width
+    plt.figure(figsize=(16, 2+len(motifs_dict_list)*0.3), dpi=300)  # Increased width
 
     # Define colors for different sequence types
     motif_colors = {
