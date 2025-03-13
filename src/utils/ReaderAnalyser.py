@@ -9,7 +9,6 @@ from sklearn.mixture import GaussianMixture
 
 def resultBedReader(file, loci_dict):
     with open(file) as straglr:
-
         straglr_reader = csv.reader(straglr, delimiter='\t')
         expansion_list: list[Expansion] = []
         sample_id = Path(file).stem
@@ -22,7 +21,7 @@ def resultBedReader(file, loci_dict):
                 chr = straglr[0]
                 start = straglr[1]
                 end = straglr[2]
-                loci = loci_dict[coords][0].name
+                locus = loci_dict[coords][0].name
                 reference_size = float(loci_dict[coords][0].reference_size)
                 ref_motif = loci_dict[coords][0].motif
                 if straglr[14].strip() == "":
@@ -35,7 +34,7 @@ def resultBedReader(file, loci_dict):
                 if straglr[4] == '-':
                     continue
 
-                # "-" means that straglr assigned no different number for second allele -> allele 1 = allele 2; In the following 2 different allele sizes were assigned
+                # "-" means that straglr assigned no different number for second allele -> allele 1 = allele 2
                 elif straglr[8] != '-':
                     allele1 = round(float(straglr[4]))
                     allele2 = round(float(straglr[7]))
@@ -44,7 +43,6 @@ def resultBedReader(file, loci_dict):
                     allele1_support = straglr[6]
                     allele2_support = straglr[9]
                     alleles = 2
-
                 else:
                     allele1 = round(float(straglr[4]))
                     allele2 = round(float(straglr[4]))
@@ -54,12 +52,25 @@ def resultBedReader(file, loci_dict):
                     allele2_support = straglr[6]
                     alleles = 1
 
-                expansion_object = Expansion(chr, start, end, loci, motif, ref_motif, allele1, allele2, reference_size, int_path_range, copy_number_1, copy_number_2, allele1_support,
-                                             allele2_support, sample_id)
+                expansion_object = Expansion(
+                    chr=chr, 
+                    start=start, 
+                    end=end,
+                    repeat_id=locus, 
+                    repeat_unit=motif,
+                    ref_motif=ref_motif,
+                    allele1_size=allele1, 
+                    allele2_size=allele2, 
+                    wt_size=reference_size,
+                    pathogenic_range=int_path_range,
+                    copy_numberA1=copy_number_1,
+                    copy_numberA2=copy_number_2,
+                    allele1_support=allele1_support,
+                    allele2_support=allele2_support,
+                    sample_id=sample_id
+                )
                 analyseGenotype(expansion_object, alleles)
                 expansion_list.append(expansion_object)
-
-        # List of expansions, though not pathogenic by definition, are sorted by chromosome or the normalized size difference between sample and reference length on hg38 in descending order
 
     return expansion_list
 
