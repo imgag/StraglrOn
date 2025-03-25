@@ -17,8 +17,6 @@ import pysam
 # set hashsalt to const value to make plots deterministic for tests
 rc('svg', hashsalt="Totally_Random_String")
 
-
-
 def getHistData(file, expansions: "list[Expansion]"):
     expansions_read_lists = {}
     for expansion in expansions:
@@ -102,7 +100,7 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
         plt.axvline(allele2_size, color='k', linestyle='dashed', linewidth=1, label=allele2_size)
     else:
         plt.hist([read_size_lists[0], read_size_lists[1]], color=['Black', 'Darkgray'], label=['Allele 1', 'Allele 2'], density=False,
-                 bins=np.arange(min(read_size_lists[0]+read_size_lists[1]), max(read_size_lists[0]+read_size_lists[1]) + 3, 3), rwidth=0.85)
+                bins=np.arange(min(read_size_lists[0]+read_size_lists[1]), max(read_size_lists[0]+read_size_lists[1]) + 3, 3), rwidth=0.85)
         plt.axvline(allele1_size, color='black', linestyle='dashed', linewidth=1, label=allele1_size)
         plt.axvline(allele2_size, color='darkgray', linestyle='dashed', linewidth=1, label=allele2_size)
 
@@ -118,134 +116,221 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
     plt.close()
 
 
-def alleleVisualiser(fasta_file, motif, flank_length, title, output_folder, chromosome, start, end, reference_genome):
+def process_motifs(seqlist, motif, flank_length):
+    """Process sequence to identify motifs and their positions"""
+    # Remove flanking regions
     
-    chr = chromosome
-    start = int(start)
-    end = int(end)
-    
-    refGen = pysam.FastaFile(reference_genome)
-    
-    reference_sequence = refGen.fetch(chr,start,end)
-    
-    fasta_sequences = list(SeqIO.parse(open(fasta_file),'fasta'))
-    read_list = []
-    for fasta in fasta_sequences:
-        read_list.append(str(fasta.seq))
-    
-    motif_colors = ["grey", "green", "red"]
-    
-    #readlist sorted by length for waterfall visualisation
-    read_list.sort(key=lambda x: len(x))
+    # Initialize dictionary for motifs and their positions
+    motifs_dict = {}
+    new_seq = []
+    found_any_motif = False
 
-    motif = motif.lower()
-    flank_length = 25
+    for i,seq in enumerate(seqlist):
 
-    '''
-    Workflow  from here with read list:
-        - right and left flanks are cut off -> list (cut_read_list)
-        - motif is used in splitting (while keeping the splitting motif) the string generating list of motif -> list (read_motif_list)
-        - individual list entries are used to form a new string and use the iterator to find motif start coordinates, alternate motifs and motif lengths -> motif_coord
-        - dictionary for each motif is created with a list of the coordinates on the original read_list -> motif_dict_list
-    '''
+        if seq == motif:
+            
+            if motif in motifs_dict:
+                motifs_dict[motif].append(len(new_seq)+flank_length)
+            else:
+                motifs_dict.update({motif:[len(new_seq)+flank_length]})
+                
+            new_seq += motif
 
-    cut_read_list = []
-    for x in read_list:
-        cut = x[flank_length:-flank_length]
-        cut_read_list.append(cut)
+        elif seq != "":
+            
+            if seq in motifs_dict:
+                motifs_dict[seq].append(len(new_seq)+flank_length)
+            else:
+                motifs_dict.update({seq:[len(new_seq)+flank_length]})
+                
+            new_seq += seq
+        
+    return motifs_dict
 
-    cut_read_list.insert(len(cut_read_list), reference_sequence.lower())
-    read_motif_list = []
-    for x in cut_read_list:
-        read_motif = re.split("(" +motif +")", x)
-        read_motif_list.append(read_motif)
+def alleleVisualiser(repeat_unit, flank_length, title, output_folder, chrom, start, end, genome_path, sequences):
+    """Create allele visualization plot"""
+    # Sort sequences by repeat length
+    sequences = sorted(sequences, key=lambda x: x.repeat_size, reverse=True)
+    
+    # Get reference sequence
+    with pysam.FastaFile(genome_path) as fasta:
+        reference_sequence = fasta.fetch(chrom, int(start), int(end))
+    
+    motif = repeat_unit.lower()
 
+    # Process motifs
     motifs_dict_list = []
 
-    for x in read_motif_list:
-        
-        new_seq = []
-        motif_coords = []
-        motifs_dict = {}
+    max_seq_len = 0
+    for seq in sequences:
+        # Extracts the sequence excluding the flanking regions
+        expansion_seq = seq.sequence[flank_length:-flank_length]
+        max_seq_len = max(max_seq_len, len(expansion_seq))
+        motif_matches = re.split("(" + motif + ")", expansion_seq)
+        motifs_dict_list.append(process_motifs(motif_matches, motif, flank_length))
+    
+    # Remove empty motifs
+    motifs_dict_list = [d for d in motifs_dict_list if d != {}]
 
-        for i, s in enumerate(x):
+    max_size = max_seq_len + 2 * flank_length # Add flanks
 
-            if x[i] == motif:
-                
-                if motif in motifs_dict:
-                    motifs_dict[motif].append(len(new_seq)+flank_length)
-                else:
-                    motifs_dict.update({motif:[len(new_seq)+flank_length]})
-                    
-                new_seq += motif
-            elif x[i] != "":
-                
-                if x[i] in motifs_dict:
-                    motifs_dict[x[i]].append(len(new_seq)+flank_length)
-                else:
-                    motifs_dict.update({x[i]:[len(new_seq)+flank_length]})
-                    
-                new_seq += x[i]
-                
-        motifs_dict_list.append(motifs_dict)
+    # Add reference sequence
+    ref_repeat = reference_sequence[flank_length:-flank_length]
+    ref_repeat_motif_matches = re.split("(" + motif + ")", ref_repeat)
+    ref_motifs = process_motifs(ref_repeat_motif_matches, motif, flank_length)
 
-    # For setting of the scale of the x axis as well as the positioning of the right flank patch
-    size = len(max(cut_read_list, key=len))+flank_length*2
+    # Create a wider figure
+    plt.figure(figsize=(16, 2+len(motifs_dict_list)*0.3), dpi=300)  # Increased width
 
-    # define Matplotlib figure and axis
-    fig, ax = plt.subplots(figsize=(16, 11), dpi=300)
-    plot_title = fasta_sequences[0].description.split(" ")[1] + "_" + motif
-    # Plot dimension depending on number and maximum length
-    plt.xlim([0,size])
-    plt.ylim([0, (len(read_list)+1)*10])
-    patches_list, color_list, labels = rectangleMaker(motif_colors, motifs_dict_list, size, flank_length, motif)
-    our_cmap = ListedColormap(color_list)
-    patches_collection = PatchCollection(patches_list, cmap=our_cmap)
-    patches_collection.set_array(np.arange(len(patches_list)))
-    ax.add_collection(patches_collection)
-    handles=[]
+    # Define colors for different sequence types
+    motif_colors = {
+        "flank": "#D3D3D3",  # Light Gray
+        "motif": "#4CAF50",  # Green
+        "non_motif": "#A9A9A9",  # Dark Gray
+        "methylated": "#F44336",  # Red
+        "hydroxymethylated": "#FFA500",  # Orange
+        "unmethylated": "#007BFF"  # Blue
+    }
+    
 
-    for patch_color in set(color_list):
-        patch = matplotlib.patches.Patch(color=patch_color, label=labels[patch_color])
-        handles.append(patch)
-        
-    plt.legend(handles=handles, loc="lower right")
-    plt.title(plot_title)
-    plt.axis("off")
-    plt.show()
-    plt.savefig((output_folder + "/" + title + ".svg").replace(":", "_"), format="svg")
+    # Create rectangles for visualization
+    patches, colors, labels = rectangleMaker(
+        motif_colors, 
+        motifs_dict_list, 
+        max_size, 
+        flank_length,
+        motif,
+        sequences
+    )
+    
+    # Create patch collection and add to plot
+    collection = PatchCollection(patches, 
+                               facecolors=colors,
+                               edgecolors='black',  # Add black borders
+                               linewidths=0.5,      # Thin border
+                               joinstyle='round')   # Rounded corners
+
+    ax = plt.gca()
+    ax.add_collection(collection)
+
+    
+    # Show only bottom axis    
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(True)
+    
+    # Adjust x-axis ticks and labels (Show only repeat lenght)
+    core_length = max_size - 2 * flank_length
+    tick_positions = np.linspace(flank_length, max_size - flank_length, 5)
+    tick_labels = np.linspace(0, core_length, 5, dtype=int)
+    
+    plt.xticks(tick_positions, tick_labels)
+    plt.xlabel('Repeat length (bp)')
+
+    # Hide y-axis ticks and labels
+    ax.yaxis.set_visible(False)
+    
+    # Rest of the visualization parameters
+    plt.xlim(-5, max_size + 5)
+    plt.ylim(-2, 4 * len(motifs_dict_list))
+    plt.title(f"{title}_{motif}")  # Updated title
+    
+    # Create legend
+    legend_elements = [plt.Rectangle((0,0), 1, 1, facecolor=color, label=label)
+                    for color, label in labels.items()]
+    plt.legend(handles=legend_elements)
+    
+    # Save plot
+    plt.savefig(f"{output_folder}/{title}_alleles.svg", format="svg", bbox_inches='tight')
     plt.close()
 
+    print(f"Finished allele plot {title}")
 
-def rectangleMaker(motif_colors, motif_coord_list, size, flank_length, motif):
+
+def rectangleMaker(colors, motif_coord_list, size, flank_length, motif, sequences):
     patches = []
     color_list = []
     labels = {}
     
     for i, x in enumerate(motif_coord_list):
-        color_chooser = 0
-        color = motif_colors[color_chooser]
-        patches.append(Rectangle((0, i*10), flank_length, 5, label="Flank"))
-        color_list.append(color)
-        labels.update({color: "Flank"})
         
-        patches.append(Rectangle((size-flank_length, i*10), flank_length, 5, label="Flank"))
-        color_list.append(color)
-        labels.update({color:"Flank"})
-            
+        # Hide reads with no motif matches frm plot
+        if x == {}:
+            continue
+
+        # First add methylation visualization
+        if sequences[i].methylation_calls:
+            for methyl_call in sequences[i].methylation_calls:
+                
+                pos = methyl_call.position
+
+                if 1 <= pos <= len(sequences[i].sequence) - flank_length:
+                    rect = Rectangle((pos-1, 4*i-0.5), 1, 4, 
+                                   facecolor='none',  # No fill, only border
+                                   linewidth=0.5,
+                                   joinstyle='round')
+                    patches.append(rect)
+                    
+                    mod_state = methyl_call.get_modification_state()
+                    if mod_state == 'm':
+                        color_list.append(colors["methylated"])
+                        labels.update({colors["methylated"]:"5mC"})
+                    elif mod_state == 'h':
+                        color_list.append(colors["hydroxymethylated"])
+                        labels.update({colors["hydroxymethylated"]:"5hmC"})
+                    else:
+                        color_list.append(colors["unmethylated"])
+                        labels.update({colors["unmethylated"]:"Unmodified C"})
+                else:
+                    start_pos = size - flank_length - (len(sequences[i].sequence) - flank_length) + pos
+                    rect = Rectangle((start_pos-1, 4*i-0.5), 1, 4,
+                                   facecolor='none',
+                                   linewidth=0.5,
+                                   joinstyle='round')
+                    patches.append(rect)
+                    
+                    mod_state = methyl_call.get_modification_state()
+                    if mod_state == 'm':
+                        color_list.append(colors["methylated"])
+                        labels.update({colors["methylated"]:"5mC"})
+                    elif mod_state == 'h':
+                        color_list.append(colors["hydroxymethylated"])
+                        labels.update({colors["hydroxymethylated"]:"5hmC"})
+                    else:
+                        color_list.append(colors["unmethylated"])
+                        labels.update({colors["unmethylated"]:"Unmodified C"})
+
+        # Add sequence rectangles
+        patches.append(Rectangle((0, i*4), flank_length, 3, 
+                               facecolor='none',
+                               linewidth=0.5,
+                               joinstyle='round'))
+        color_list.append(colors["flank"])
+        labels.update({colors["flank"]:"Flank"})
+        
+        patches.append(Rectangle((size-flank_length, i*4), flank_length, 3,
+                               facecolor='none',
+                               linewidth=0.5,
+                               joinstyle='round'))
+        color_list.append(colors["flank"])
+        
         for key in x:
             if key == motif:
-                color = motif_colors[1]
                 for coord in x[key]:
-                    patches.append(Rectangle((coord, 10*i), len(key), 5, label=key))
-                    color_list.append(color)
-                labels.update({color:key})
-            
+                    patches.append(Rectangle((coord, 4*i), len(key), 3,
+                                          facecolor='none',
+                                          linewidth=0.5,
+                                          joinstyle='round'))
+                    color_list.append(colors["motif"])
+                labels.update({colors["motif"]:"Motif"})
             else:
-                color = motif_colors[2]
                 for coord in x[key]:
-                    patches.append(Rectangle((coord, 10*i), len(key), 5, label="non-motif"))
-                    color_list.append(color)
-                labels.update({color:"non-motif"})
-        
+                    patches.append(Rectangle((coord, 4*i), len(key), 3,
+                                          facecolor='none',
+                                          linewidth=0.5,
+                                          joinstyle='round'))
+                    color_list.append(colors["non_motif"])
+                labels.update({colors["non_motif"]:"Non-motif"})
+    
     return patches, color_list, labels

@@ -15,8 +15,6 @@ class Expansion:
         self.allele1_support = allele1_support
         self.allele2_support = allele2_support 
         self.wt_size = wt_size
-
-        
         self.sample_id = sample_id
         
         # Data imported and inferred from loci bed file in ResultBedReader = required
@@ -76,3 +74,46 @@ class Locus:
         self.min_pathogenic = min_pathogenic
         #self.pathogenic_motif = pathogenic_motiv
         #self.pathogenic_motif_range = pathogenic_motif_range
+
+# Methylation call class used in extract_repeats.py
+class MethylationCall:
+    def __init__(self, position: int, modifications: dict = None):
+        self.position = position
+        self.modifications = modifications or {}  # Format: {'m': qual, 'h': qual}
+    
+    def get_modification_state(self):
+        """Returns the most likely modification state based on quality scores"""
+        total_qual = sum(self.modifications.values())
+        
+        # Base is unmodified if total modification probability < 50%
+        if total_qual < 127:  # 255/2 rounded down
+            return 'unmodified'
+        
+        # Return modification with highest quality score
+        return max(self.modifications.items(), key=lambda x: x[1])[0]
+    
+    def is_modified(self):
+        """Returns True if base is likely methylated (m modification)"""
+        return self.get_modification_state() in ['m', 'h']
+    
+    def quality_score(self):
+        """Returns the quality score for the most likely modification"""
+        if not self.modifications:
+            return 0
+        return max(self.modifications.values())
+
+class RepeatSequence:
+    def __init__(self, locus: str, read_name: str, repeat_size: int, sequence: str, 
+                 start_position: int, end_position: int, 
+                 left_flank: str, repeat_sequence: str, right_flank: str,
+                 methylation_calls=None):
+        self.locus = locus
+        self.read_name = read_name
+        self.repeat_size = repeat_size
+        self.sequence = sequence
+        self.start_position = start_position
+        self.end_position = end_position
+        self.left_flank = left_flank
+        self.repeat_sequence = repeat_sequence
+        self.right_flank = right_flank
+        self.methylation_calls = methylation_calls if methylation_calls else []
