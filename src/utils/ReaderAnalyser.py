@@ -36,16 +36,16 @@ def resultBedReader(file, loci_dict):
 
                 # "-" means that straglr assigned no different number for second allele -> allele 1 = allele 2
                 elif straglr[8] != '-':
-                    allele1 = round(float(straglr[4]))
-                    allele2 = round(float(straglr[7]))
+                    allele1 = round(float(straglr[4].replace(">", ""))) #ignore leading '>' in allele size (result from partial reads)
+                    allele2 = round(float(straglr[7].replace(">", "")))
                     copy_number_1 = straglr[5]
                     copy_number_2 = straglr[8]
                     allele1_support = straglr[6]
                     allele2_support = straglr[9]
                     alleles = 2
                 else:
-                    allele1 = round(float(straglr[4]))
-                    allele2 = round(float(straglr[4]))
+                    allele1 = round(float(straglr[4].replace(">", "")))
+                    allele2 = round(float(straglr[4].replace(">", "")))
                     copy_number_1 = straglr[5]
                     copy_number_2 = straglr[5]
                     allele1_support = straglr[6]

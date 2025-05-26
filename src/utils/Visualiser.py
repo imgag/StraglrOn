@@ -31,8 +31,8 @@ def getHistData(file, expansions: "list[Expansion]"):
                 for line in read_reader:
                     if not line[0].startswith('#'):
                         if expansion.start+expansion.repeat_unit == line[1]+line[3]:
-                            # skip reads with read_status != full
-                            if line[14] != "full":
+                            # skip reads with read_status != full/partial
+                            if line[14] != "full" and line[14] != "partial":
                                 continue
                             # read column 'read'/'read_name' and 'read_start'
                             read_coords_dict.update({line[7]: int(line[11])})
@@ -51,16 +51,22 @@ def getHistData(file, expansions: "list[Expansion]"):
                 read_list_A1 = []
                 read_list_A2 = []
                 read_coords_dict = {}
-                #print(locus[-2], locus[-1])
                 for line in read_reader:
                     if not line[0].startswith('#'):
                         if expansion.start+expansion.repeat_unit == line[1]+line[3]:
-                            # skip reads with read_status != full
-                            if line[14] != "full":
+                            # skip reads with read_status != full/partial
+                            if line[14] != "full" and line[14] != "partial":
                                 continue
-                            if expansion.copy_numberA1 == line[13]:  # read column 'allele' (not 'copy_number')
+
+                            # get allele:
+                            # skip reads with no allele
+                            if line[13] == "NA":
+                                continue
+                            allele = float(line[13].replace(">", ""))
+
+                            if float(expansion.copy_numberA1) == allele:  # read column 'allele' (not 'copy_number')
                                 read_list_A1.append(int(line[10]))  # read column 'size'
-                            if expansion.copy_numberA2 == line[13]:  # read column 'allele' (not 'copy_number')
+                            if float(expansion.copy_numberA2) == allele:  # read column 'allele' (not 'copy_number')
                                 read_list_A2.append(int(line[10]))  # read column 'size'
                             # read column 'read'/'read_name' and 'read_start'
                             read_coords_dict.update({line[7]:int(line[11])})
@@ -90,8 +96,13 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
         read_size_lists = expansion_object.read_list
 
     # get x ranges
-    max_x = max(max(read_size_lists[0]), ref_size * len(ref_motif))
-    min_x = min(min(read_size_lists[0]), ref_size * len(ref_motif))
+
+    if len(read_size_lists) == 2:
+        max_x = max(max(read_size_lists[0]), max(read_size_lists[1]), ref_size * len(ref_motif))
+        min_x = min(min(read_size_lists[0]), min(read_size_lists[1]), ref_size * len(ref_motif))
+    else:
+        max_x = max(max(read_size_lists[0]), ref_size * len(ref_motif))
+        min_x = min(min(read_size_lists[0]), ref_size * len(ref_motif))
 
     plt.figure(figsize=(16, 11), dpi=300)
     if allele1_size == allele2_size:
@@ -99,18 +110,17 @@ def plotHistogram(expansion_object: Expansion, plotfolder, bool_altclustering):
         plt.axvline(allele1_size, color='k', linestyle='dashed', linewidth=1, label=allele1_size)
         plt.axvline(allele2_size, color='k', linestyle='dashed', linewidth=1, label=allele2_size)
     else:
-        plt.hist([read_size_lists[0], read_size_lists[1]], color=['Black', 'Darkgray'], label=['Allele 1', 'Allele 2'], density=False,
-                bins=np.arange(min(read_size_lists[0]+read_size_lists[1]), max(read_size_lists[0]+read_size_lists[1]) + 3, 3), rwidth=0.85)
-        plt.axvline(allele1_size, color='black', linestyle='dashed', linewidth=1, label=allele1_size)
-        plt.axvline(allele2_size, color='darkgray', linestyle='dashed', linewidth=1, label=allele2_size)
+        plt.hist([read_size_lists[0], read_size_lists[1]], color=['blue', 'orange'], label=['Allele 1', 'Allele 2'], density=False, bins=100)
+        plt.axvline(allele1_size, color='blue', linestyle='dashed', linewidth=1, label=allele1_size)
+        plt.axvline(allele2_size, color='orange', linestyle='dashed', linewidth=1, label=allele2_size)
 
     plt.ylabel('Number of Reads')
     plt.xlabel('Size(bp)')
     plt.title(expansion_object.title)
-    plt.axvline(ref_size * len(ref_motif), color='blue', linewidth=1, label="wt size: " + str(ref_size * len(ref_motif)))
+    plt.axvline(ref_size * len(ref_motif), color='darkgreen', linewidth=1, label="wt size: " + str(ref_size * len(ref_motif)))
     if min_pathogenic != 'NA':
         plt.axvline(int(min_pathogenic) * len(ref_motif), color='red', linewidth=1, label="min pathogenic: " + str(int(min_pathogenic) * len(ref_motif)))
-    plt.xlim((min_x - 0.5 * (max_x - min_x)), (max_x + 0.5 * (max_x - min_x)))
+    plt.xlim((min_x - 0.25 * (max_x - min_x)), (max_x + 0.25 * (max_x - min_x)))
     plt.legend()
     plt.savefig(save_place, format="svg")
     plt.close()

@@ -20,7 +20,7 @@ def parse_tsv(tsv, loci=None):
             status = cols[14].strip()  # was "does not exist"
 
             # ignore skipped/failed reads
-            if status != "full":
+            if status != "full" and status != "partial":
                 continue
             read_name = cols[7]  # was cols[5]
             size = cols[10]  # was cols[7] (repeat length in bases)
