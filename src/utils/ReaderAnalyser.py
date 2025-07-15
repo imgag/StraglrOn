@@ -38,8 +38,8 @@ def resultBedReader(file, loci_dict):
                 elif straglr[8] != '-':
                     allele1 = round(float(straglr[4].replace(">", ""))) #ignore leading '>' in allele size (result from partial reads)
                     allele2 = round(float(straglr[7].replace(">", "")))
-                    copy_number_1 = straglr[5]
-                    copy_number_2 = straglr[8]
+                    copy_number_1 = float(straglr[5].replace(">", ""))
+                    copy_number_2 = float(straglr[8].replace(">", ""))
                     allele1_support = straglr[6]
                     allele2_support = straglr[9]
                     alleles = 2
