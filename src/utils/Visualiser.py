@@ -252,7 +252,7 @@ def alleleVisualiser(repeat_unit, flank_length, title, output_folder, chrom, sta
     plt.legend(handles=legend_elements)
     
     # Save plot
-    plt.savefig(f"{output_folder}/{title}_alleles.svg", format="svg", bbox_inches='tight')
+    plt.savefig(f"{output_folder}/{title}.svg", format="svg", bbox_inches='tight')
     plt.close()
 
     print(f"Finished allele plot {title}")
